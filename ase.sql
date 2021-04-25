@@ -40,7 +40,7 @@ SELECT /*+ */
     || ':'
     || final_blocking_session bs,
     sql_child_number ch#,
-    osuser,
+    osuser,seq#,
     TO_CHAR(sql_exec_id,'xxxxxxxx') hex -- ,sstat.value cpu_value     --ltrim(p1raw,'0') p1raw 
     --taddr  
 FROM
