@@ -3,16 +3,15 @@ prompt +------------------------------------------------------------------------
 prompt |                         ORACLE Database Health Check                         |
 prompt |------------------------------------------------------------------------------+
 prompt | Copyright (c) 2017-2022 Weejar Zhang (weejar@gmail.com). All rights reserved.|
+prompt |Purpose:                                                                      |
+prompt |Creating database health check report.                                        |
+prompt |Usage:  sqlplus / as sysdba   SQL>@odbhc.sql                                  |                
+prompt |Note:                                                                         |
+prompt | This script must be run as a user with SYSDBA privileges.                     |
+prompt | If there is a command "not found error", it can be safely ignored            |
+prompt | The v$session.module is 'odbhc' , you can check Which SQL is runing now.	   |
+prompt | This process can take several minutes to complete.please waiting ...          |
 prompt +------------------------------------------------------------------------------+
-prompt
-prompt Creating database health check report.
-prompt This script must be run as a user with SYSDBA privileges.
-prompt Usage:                                                               
-prompt sqlplus / as sysdba                            
-prompt SQL>@odbhc.sql
-prompt This process can take several minutes to complete. If there is a command not found error, it can be safely ignored
-prompt The session module is 'odbhc', please waiting ...
-prompt
 
 
 whenever sqlerror exit sql.sqlcode;
@@ -2204,7 +2203,7 @@ SELECT sn.instance_number,to_char(sn.begin_interval_time,'yyyymmdd hh24:mi:ss') 
 prompt <a name="tg_load_profile"></a>
 prompt <font size="+1" face="Arial,Helvetica,Geneva,sans-serif" color="#336699"><b>Last 7 days Load Profile overview</b></font>
 
-host echo Query last 7 days load profile related items trend graph ...
+host echo Check last 7 days load profile ...
 
 clear columns breaks computes
 
