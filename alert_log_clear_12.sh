@@ -134,7 +134,7 @@ fi
 
 # remove cdump
 echo ${DUMP_PATH}
-find . -mtime +3 -type d -name "cdmp%" -print -exec rm -r {} \;
+find . -mtime +3 -type d -name "cdmp*" -print -exec rm -r {} \;
 
 echo  `date "+%Y-%m-%d %H:%M:%S"`
 echo "To clear alert log file complated!"  

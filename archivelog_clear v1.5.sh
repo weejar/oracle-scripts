@@ -172,7 +172,7 @@ then
  
 $ORACLE_HOME/bin/sqlplus -S  "/ as sysdba" <<EOF > $TMP_SQL_OUT_FILE
 SET LINES 300
- select name,total_mb,free_mb,round((1-(free_mb/total_mb))*100) usage from v\$asm_diskgroup;
+ select name,total_mb,free_mb,round((1-(free_mb/total_mb))*100) usage from v\$asm_diskgroup_stat;
 EOF
 
   DG_NAME=`echo $ARCH_PATH|cut -c2- |awk -F/ '{print $1}'`
@@ -194,15 +194,14 @@ echo "Current archive location usage:"$DG_USAGE"% "
 if [ $DG_USAGE -ge 80 ]
 then 
 echo "Note: Current DG USAGE: $DG_USAGE"
-# delete archive log until 5hours 
+# delete archive log until 5day 
 $ORACLE_HOME/bin/rman  "target /" nocatalog  <<EOF
- DELETE force NOPROMPT ARCHIVELOG UNTIL TIME 'SYSDATE-5/24';
+ DELETE force NOPROMPT ARCHIVELOG UNTIL TIME 'SYSDATE-5';
  CROSSCHECK ARCHIVELOG ALL;
  DELETE NOPROMPT EXPIRED ARCHIVELOG ALL;
 EOF
 
 fi
-
 
 # if asm end
 fi

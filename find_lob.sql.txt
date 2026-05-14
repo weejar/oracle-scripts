@@ -1,0 +1,9 @@
+select u.name, o.name TABLENAME, decode(bitand(c.property, 1), 1, ac.name, c.name) as column_name
+from sys.obj$ o, sys.col$ c, sys.attrcol$ ac,sys.lob$ l,sys.obj$ lo,sys.obj$ io,
+sys.user$ u,sys.ts$ ts
+where o.owner# = u.user#
+and o.obj# = c.obj#
+and c.obj# = l.obj# and c.intcol# = l.intcol#
+and l.lobj# = lo.obj# and l.ind# = io.obj# and l.ts# = ts.ts# and c.obj# =
+ac.obj#(+)
+and c.intcol# = ac.intcol#(+) and lo.name ='SYS_LOB0000551103C00007$$';

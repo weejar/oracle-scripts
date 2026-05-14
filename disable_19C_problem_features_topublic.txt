@@ -1,0 +1,358 @@
+-- v1.4.3
+-- author: weejar.zhang(anbob.com)
+
+------------------- os  -------------------
+
+时钟同步
+ 12c 新增了对 chrony 的支持。
+ 如果使用 ntp 必须调整 /etc/sysconfig/ntp 文件， OPTIONS 增加 x 选项 ，并禁用 c hrony 。
+ 如果使用 c hrony 则禁用 n tp
+ 如果使用 CTSS ，则 禁用 ntp 和 chrony
+
+
+
+验证 n uma:
+1. 检查 OS 是否开启 NUMA
+numactl
+hardware
+2. 判断系统是否开启了 numa 功能
+grep
+i numa /var/log/dmesg
+如果出现了：
+"No NUMA configuration found" ，则证明是关闭了 numa 功能，
+如果是其他内容，则为开启了
+numa
+
+验证透明大页：
+cat
+/sys/kernel/mm/transparent_hugepage/enabled
+cat /proc/meminfo|grep Huge
+
+
+验证 I/O Scheduler
+1. dmesg | grep i scheduler
+
+关闭、 禁用防火墙 f irewalld
+systemctl stop firewalld
+systemctl disable firewall
+ 
+关闭、 禁用 avahi daemon
+# systemctl stop avahi dnsconfd
+# systemctl stop avahi daemon
+# systemctl disable avahi dnsconfd
+# systemctl disable avahi daemon
+
+
+------------------- os end --------------------
+
+
+
+
+
+-------------------- Listener -----------------------
+sqlnet.ora
+在
+$ORACLE_HOME/network/admin/sqlnet.ora 文件中添加以下参数，使低版本的客户可以连接该数据库。
+SQLNET.ALLOWED_LOGON_VERSION_SE R VER=11
+SQLNE T.ALLOWED_LOGON_VERSION_CLIENT=11
+添加以下参数
+设置 DCD 检测时间为 1 分钟
+SQLNET.EXPIRE_TIME=1
+
+
+---------------------------------- job  -------------------
+
+exec  DBMS_AUTO_TASK_ADMIN.DISABLE( client_name =>  'auto optimizer stats collection', operation => NULL,window_name => NULL);
+exec  DBMS_AUTO_TASK_ADMIN.DISABLE( client_name =>  'auto space advisor', operation => NULL,window_name => NULL);
+exec  DBMS_AUTO_TASK_ADMIN.DISABLE( client_name => 'sql tuning advisor', operation => NULL,window_name => NULL);
+commit;
+exec dbms_scheduler.disable('ORACLE_OCM.MGMT_CONFIG_JOB');
+exec dbms_scheduler.disable('ORACLE_OCM.MGMT_STATS_CONFIG_JOB');
+
+
+// to disable histogram , you set bucket size to 1
+exec DBMS_STATS.SET_PARAM( 'method_opt','FOR ALL COLUMNS SIZE 1' );
+commit;
+
+
+----------------------------- known bugs ------------
+
+
+// disable 19c automatic indexing feature 
+alter system set "_optimizer_auto_index_allow"=NEVER scope=spfile;
+alter system set "_optimizer_use_auto_indexes"=OFF scope=spfile;
+
+// disable online auto stats gather for 19c high library cache lock During Partition Index Maintenance
+alter system set "_optimizer_gather_stats_on_load_index"=false scope=spfile;
+
+// show seed pdb
+ alter system set "_EXCLUDE_SEED_CDB_VIEW"=FALSE scope=both;
+
+# for Bug 30265523
+_enable_rejection_cache = false
+
+# Bug 30473634 : LNX64-20.1-ASM,DB DBW5 HIT ORA-00600[KCBBXSV_NWP] THEN INST CRASH
+-- disable DRM
+_lm_drm_disable=7
+ 
+# for   Bug 30159581 - alter new primary open hang after switchove
+set "_min_undosegs_for_parallel_fptr" = 0
+
+
+
+#  FOR ORACLE 19.9 ON linux7  HUAWEI HARDWARE  
+ASM
+参数调整
+alter system set processes=1000 scope=spfile sid='*';
+alter system set memory_max_target=4096M scope=spfile sid='*';
+alter system set memory_target=4096M scope=spfile sid='*';
+alter system set asm_diskstring=’/dev/asm *’ scope=spfile;
+
+DB
+参数调整
+建议按照如下 参数 进行调整 在调整完 ASM 和 DB 参数后 重启 DB 和 ASM 实例或者重启 CRS 生效参数设置 ，其中黑色部分是现生产库运行 参数：
+
+alter system set "_shared_pool_reserved_pct" pct"=10 scope=
+alter system set pre_page_sga = TRUE scope=spfile;
+alter system set use_large_pages = TRUE scope=spfile;
+alter system set lock_sga = FALSE scope=spfile;
+alter system set archive_lag_target = 0 scope=spfile;
+alter system set cell_offload_processing = FALSE scope=spfile;
+alt er system set event = ='60025 TRACE NAME CONTEXT FOREVER','10949 trace name context forever,level 1 ' scope=
+alter system set log_checkpoints_to_alert = FALSE scope=spfile;
+alter system set result_cache_max_size = 0 scope=spfile;
+alter system set session_max_open_files = 10 scope=spfile;
+alter system set "_gc_policy_minimum" = 15000 scope=spfile;
+alter system set "_rollback_segment_count"=2000 sid='*' scope=spfile;
+alter system set "_serial_direct_read" ='never' scope=spfile;
+alter system set "_sys_logon_delay" 0 scope=spfile;
+
+alter system set log_archive_format = '%t_%s_%r.arc' scope=
+
+alter system set "_memory_imm_mode_without_autosga" = FALSE scope=spfile;
+alter system set optimizer_adaptive_statistics = FALSE scope=
+
+alter system set "_report_capture_cycle_time" = 0 scope=spfile;
+alter system set "_cleanup_rollback_entries" = 400 scope=spfile;
+alter system set "_clusterwide_global_transactions" = FALSE scope=spfile;
+alter system set "_datafile_write_errors_crash_instance" = FALSE scope=spfile;
+# disable DRM
+alter system set "_gc_policy_ time" = 0 scope=spfile;
+alter system set "_gc_undo_affinity" = FALSE scope=spfile;
+
+alter system set "_log_segment_dump_parameter" = FALSE scope=spfile;
+alter system set "_log_segment_dump_patch" = FALSE scope=spfile;
+alter system set "_optim_peek_user_ binds" = FALSE scope=spfile;
+alter system set "_optimizer_adaptive_cursor_sharing" = FALSE scope=spfile;
+alter system set "_optimizer_ads_use_result_cache" = FALSE scope=spfile;
+alter system set "_optimizer_aggr_groupby_elim" = FALSE scope=spfile;
+alter system set "_optimizer_dsdir_usage_control" = 0 scope=spfile;
+alter system set "_optimizer_extended_cursor_sharing" = NONE scope=spfile;
+alter system set "_optimizer_extended_cursor_sharing_rel" = NONE scope=spfile;
+alter system set "_optimizer_gather_feedback" = FALSE scope=spfile;
+alter system set "_optimizer_partial_join_eval" = FALSE scope=spfile;
+alter system set "_optimizer_reduce_groupby_key" = FALSE scope=spfile;
+alter system set "_partition_large_extents" = FALSE scope=spfile;
+alter system set "_optimizer_null_accepting_semijoin"=FALSE scope=spfile;
+alter system set "_optimizer_use_feedback" = FALSE scope=spfile;
+alter system set "_PX_use_large_pool" = TRUE scope=spfile;
+alter system set "_sql_plan_directive_mgmt_control" = 0 scope=spfile;
+alter system set "_undo_autotune" = FALSE scope=spfile;
+alter system set "_use_adaptive_log_file_sync" = FALSE scope=spfile;
+
+并行度相关参数
+alter system set parallel_degree_limit = CPU scope=spfile;
+alter system set parallel_degree_policy = MANUAL scope=spfile;
+alter system set parallel_execution_message_size = 32768 scope=spfile;
+alter system set parallel_force_local = TRUE scope=spfile;
+
+
+
+注意：
+ 在 12c 及以上版本 中，如果使用到 PDB ，需要 Resource Manager 进行 PDB 的资源分配，因此，不建议禁用 Resource Manager 。
+ 在调整完 ASM 和 DB 参数后 重启 DB 和 ASM 实例或者 重启 CRS 生效参数设置 如果调整 SGA 需要重新计算 Hugepage 大小 。
+ 
+内置
+
+JOB 处理根据客户要求是否关闭或定制内置JOB 。
+例子：关闭自动job:
+exec dbms_auto_task_admin.disable(client_name=>'auto optimizer stats collection',operation=>null,window_name=>null);
+exec dbms_auto_task_admin.disable(client_name=>'auto space advisor',operation=>null,window_name=>null);
+exec dbms_auto_task_admin.disable(client_name=>'sql tuning advisor',operation=>null,window_name=>null);
+exec dbms_scheduler.disable('ORACLE_OCM.MGMT_CONFIG_JOB');
+exec dbms_scheduler.disable('ORACLE_OCM.MGMT_STATS_CONFIG_JOB');
+
+配置
+配置每周日凌晨做一次统计信息收集：
+exec dbms_scheduler.disable('MONDAY_WINDOW');
+exec dbms_scheduler.disable('TUESDAY_WINDOW');
+exec dbms_scheduler.disable('WEDNESDAY_WINDOW');
+exec dbms_scheduler.d isable('THURSDAY_WINDOW');
+exec dbms_scheduler.disable('FRIDAY_WINDOW');
+exec dbms_scheduler.disable('SATURDAY_WINDOW');
+exec dbms_scheduler.disable('WEEKNIGHT_WINDOW');
+exec dbms_scheduler.disable('WEEKEND_WINDOW');
+exec dbms_scheduler.disable('SUNDAY_WINDOW');
+EXECUTE
+DBMS_SCHEDULER.SET_ATTRIBUTE('SUNDAY_WINDOW','repeat_interval','freq=daily;byday=SUN;by
+hour=1;byminute=0;bysecond=0');
+
+EXEC DBMS_SCHEDULER.SET_ATTRIBUTE('SUNDAY_WINDOW', 'duration', '+000 08:00:00');
+EXEC DBMS_SCHEDULER.SET_ATTRIBUTE('SUNDAY_WINDOW', 'resource_plan', '');
+exec dbms_scheduler.enable('SUNDAY_WINDOW');
+
+exec dbms_auto_task_admin.enable(client_name=>'auto optimizer stats collection',operation=>null,window_name=>'SUNDAY_WINDOW');
+sql> select c lient_name,status from dba_autotask_client;
+ 
+  ===========   数据库字典统计信息收集
+注：应用侧数据迁移完成后，请再次执行下述命令。
+exec dbms_stats.gather_system_stats;
+exec dbms_stats.gather_dictionary_stats;
+exec dbms_stats.gather_fixed_objects_stats;
+
+============= Unified Audit
+
+在1 9c 中，数据库审计采用 Unified Auditing 除了数据库自带的缺省审计规则，需要根据实际安全需求
+定制额外的审计规则；
+select * from audit_unified_enabled_policies;
+select unique policy_name from audit_unified_policies;
+select count(*) from unified_audit_trail;
+对于审计日志，建议创建单独的表空间存放，例如：
+create tablespace TBS_UNIAUD datafile size 30g autoextend off;
+begin
+dbms_audit_mgmt.set_audit_trail_location(
+audit_trail_type=>dbms_audit_mgmt.audit_trail_unified,
+audit_trail_location_value=> value=>'TBS_
+end;
+
+
+# for Huawei 一体机 oracle建议
+kernel.shmall=197610245
+ke rnel.shmmax=647529250816
+kernel.shmmni=4096
+kernel.sem= 250 60000 100 240
+kernel.pid_max = 131072
+kernel.panic_on_oops=1
+kernel.randomize_va_space=0
+fs.file max=26349267
+net.core.rmem_default=262144
+net.core.rmem_max=4194304
+net.core.wmem_default=262144
+net.core.wmem_max=1048576
+net.core.somaxconn=1024
+net.core.netdev_max_backlog=8192
+net.ipv4.conf.Ibond0.rp_filter = 2
+net.ipv4.conf.ebond3.rp_filter = 1
+net.ipv4.conf.i b0.rp_filter = 2
+net.ipv4.conf.ib1.rp_filter = 2
+net.ipv4.conf.ib2.rp_filter = 2
+net.ipv4.conf.ib3.rp_filter = 2
+net.ipv4.ip_local_port_range=9000 65500
+net.ipv4.ipfrag_high_thresh=16777216
+net.ipv4.ipfrag_low_thresh=15728640
+net.ipv4.ipfrag_time=60
+fs.aio max nr=4194304
+kernel.hung_task_panic=0
+vm.dirty_background_ratio=3
+vm.dirty_ratio=30
+vm.dirty_expire_centisecs=500
+vm.dirty_writeback_centisecs=100
+vm.max_map_count=1048576
+vm.min_free_kbytes= 4194304
+vm.swappiness=10
+vm.hugetlb_shm_group = 1001 ##o install gid 为 1001
+vm.nr_hugepages= 1 92988
+
+# redo log bad
+_max_outstanding_log_writes=1;   -- default 2, from 19.14 default 1
+
+##  for huge memory
+a.      Set _lm_sync_timeout to 1200    (this recommendation is valid only for databases that are12.2 and lower)
+           Setting this will prevent some timeouts during reconfiguration and DRM. It's a static parameter and rolling restart is supported.
+
+b.      Set shared_pool_size to 15% or larger of the total SGA size.
+        For example, if SGA size is 1 TB, the shared pool size should be at least 150 GB. It's a dynamic parameter.
+
+c.      Set _gc_policy_minimum to 15000
+        There is no need to set _gc_policy_minimum if DRM is disabled by setting _gc_policy_time = 0. _gc_policy_minimum is a dynamic parameter, _gc_policy_time is a static parameter and rolling restart is not supported. To disable DRM, instead of _gc_policy_time, _lm_drm_disable should be used as it's dynamic.
+
+d.      Set _lm_tickets to 5000    (this recommendation is valid only for databases that are12.2 and lower)
+        Default is 1000.   Allocating more tickets (used for sending messages) avoids issues where we ran out of tickets during the reconfiguration. It's a static parameter and rolling restart is supported. When increasing the parameter, rolling restart is fine but a cold restart can be necessary when decreasing.
+
+e.      Set gcs_server_processes to the twice the default number of lms processes that are allocated.    (this recommendation is valid only for databases that are12.2 and lower)
+        The default number of lms processes depends on the number of CPUs/cores that the server has,
+        so please refer to the gcs_server_processes init.ora parameter section in the Oracle Database Reference Guide
+        for the default number of lms processes for your server.  Please make sure that the total number of lms processes
+        of all databases on the server is less than the total number of CPUs/cores on the server.  Please refer to the Document 558185.1
+        It's a static parameter and rolling restart is supported.
+		
+
+
+alter system set sec_max_failed_login_attempts=100 scope=spfile;	
+
+# 19c logon slow 
+alter system set client_statistics_level=OFF scope=spfile;
+restart database
+
+alter session set "_px_cdb_view_enabled"=false;
+alter system set "_optimizer_inmemory_capture_stored_stats" = false;
+alter session set "_subquery_pruning_enabled" = false;
+
+#Slow Incremental Statistics Gathering in 19c
+alter system set "_fix_control"='20424684:OFF';
+
+#Automatic statistics gathering job getting timed out
+alter system set "_fix_control"='27268249:0';
+ 
+# ora-4030  max use of one processes
+
+_use_realfree_heap=TRUE
+_realfree_heap_pagesize = 262144   -- default 65536    vm.max_map_count*_realfree_heap_pagesize=4GB.
+
+ 
+# ASM on 19.3-19.10, if repeated rebalances cause the 'ges resource dynamic' to increase and eventually ORA-4031 is hit, it is likely a duplicate of this  bug.
+  
+ WORKAROUND:
+alter system set "_lm_broadcast_res"=disable scope=spfile;  --enable_broadcast default 
+-- restart database
+
+
+# WRONG RESULT >=19.8 ISSUE <=19.12 BUG 32523613
+A query involving comparison of NVARCHAR2/NCHAR and CHAR/VARCHAR2 data types gave a wrong result.
+set "_optimizer_generate_transitive_pred" = false;
+
+# for ORA-00600 [qesrLoopOverSetRowP:rows]
+_rowsets_enabled=false;
+
+# FOR AIX 
+Flush of the ARP cache more frequently by setting AIX OS parameter "arpt_killc" to a lower value 0 or 1, the default value is 20 (minutes).
+arpt_killc=1
+
+
+# bug 19314908 latch free  object stats modification"
+_object_statistics=false
+
+# Bug 29780459 - High Waits On "latch :ges resource hash list" After Upgrading to 18c or Above (Doc ID 29780459.8) 从18c开始从64k降到32k，直到19.17修复
+_lm_res_hash_bucket=65536 
+
+
+# bug HIGH VERSION COUNT DUE TO "ROLLING INVALIDATE WINDOW EXCEEDED" 19.5.0.0.0 and later Bug 33238706 : PRUNE AWAY EXPIRED ROLLING INVALIDATED CHILD CURSORS
+  Note this bug has regressed and was replaced with the below bug.Bug 33299877 
+    But it did not help.
+"_cursor_obsolete_threshold " to 500
+"_optimizer_invalidation_period" to 2 hours
+- Download and apply the patch 33299877 which would help to alleviate the issue.
+As per the bug, This is fixed in version 23.1
+
+
+NOTE:34562023.8 - Bug 34562023 - [RAC] Some Sessions Hang on 'gc cr multi block request'
+
+
+
+ drop partition,purge partition , ISA, CTAS 会更新统计信息
+ALTER system SET "_optimizer_gather_stats_on_load"=FALSE;
+
+
+# 常归DML 会实时更新统计信息 产生row cache lock   dc_realtime_tabst
+ALTER SESSION SET "_optimizer_gather_stats_on_conventional_dml"=FALSE;
+ALTER SESSION SET "_optimizer_use_stats_on_conventional_dml"=FALSE;

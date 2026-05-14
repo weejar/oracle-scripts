@@ -7,6 +7,7 @@
 
 SET LINES 400 PAGES 1000
 COL username FOR a10
+col status for a7
 COL machine FOR a10
 COL osuser FOR a10 TRUNC
 COL module FOR a20 TRUNC
@@ -17,7 +18,10 @@ COL wai_secinwait FOR a10
 COL bs FOR a10
 COL ch# FOR 999
 COL cpu_value FOR 999,999,999 HEADING 'CPU'
-
+col status for a7
+col hex for a10
+col last_call_et for 99999999 heading "last_call|et"
+  
 SELECT /*+ */
     ses.username,
     ses.sid,
@@ -29,7 +33,7 @@ SELECT /*+ */
     ses.machine,
     regexp_substr(ses.module,'[^@]+') module,
     ses.status,
-    ses.last_call_et --,   seq#  
+    ses.last_call_et ,   seq#  
    , ses.sql_id,
     wait_time
     || ':'
@@ -40,7 +44,7 @@ SELECT /*+ */
     || ':'
     || final_blocking_session bs,
     sql_child_number ch#,
-    osuser,seq#,
+    osuser,
     TO_CHAR(sql_exec_id,'xxxxxxxx') hex -- ,sstat.value cpu_value     --ltrim(p1raw,'0') p1raw 
     --taddr  
 FROM
@@ -60,7 +64,4 @@ ORDER BY
     last_call_et,
     seconds_in_wait;
 
-SELECT
-    SYSDATE current_time
-FROM
-    dual;
+ 

@@ -1,9 +1,9 @@
 #!/bin/sh
 
 # file: lsnr_log_clear.sh
-# author: weejar(anbob.com)
+# author: weejar
 # date: 2018/10/22
-# desc: automatic to wrap listener log if filesize bigger than xx
+# desc: automatic to wrap listener log if filesize bigger than 1024m
 # version: 1.6
 # note: to add crontab in listener owner 
 #
@@ -13,16 +13,6 @@
 # update history
 # 0.1 2016/1/4 created
 # ...
-# 0.6 fix bug hpux 11.31  filesize over interger 2147483647 , do not work
-# 0.7 fix bug hpux listener two processes, exclude "-inherit" one
-# 0.8 fix bug hpux listener shadow processes get listener name wroung
-# 0.9 fix bug filesize float type compare issue, to integer
-# 1.0 fix LSNRRUNNING 
-# 1.1 fix not remove listener xml log file in GRID HOME
-# 1.2 fix LSNR LSNR_BIN path awk cut date or time
-# 1.3 fix exclude another process contain "lsnr", et..  ETL tail listener log
-# 1.5 fix get listener name,  get owner OH FOR each listener
-# 1.6 check rm xml error
 
 echo $0
 echo  `date "+%Y-%m-%d %H:%M:%S"`

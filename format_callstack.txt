@@ -1,0 +1,1 @@
+cat trace_file.txt |sed -n '/Call Stack Trace/,/ main()/p'|sed -n '5,/*/p'|cut -c1-29|sed '/^[[:space:]]*$/d'|awk -F"(" '{printf $1 " <-" } NR%5==0{printf "\n"}'

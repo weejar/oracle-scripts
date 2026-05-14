@@ -19,3 +19,14 @@ col "Metric" for a80
  group by metric_id,group_id,metric_name,metric_unit
  order by metric_name;  
  
+ 
+ 
+ 
+ select * from 
+ (select to_char(begin_time,'hh24:mi:ss')||'-'||to_char(end_time,'hh24:mi:ss') "time",metric_name||' - '||metric_unit "metric",inst_id,round(value,1) value 
+  from gv$sysmetric  where metric_name in ('I/O Megabytes per Second','I/O Requests per Second','Average Synchronous Single-Block Read Latency')
+  or metric_name like '%Physical Reads%Per Sec%' or metric_name like '%Physical Writes%Per Sec%'
+ ) 
+  pivot
+  (sum(value) for inst_id in (1 as "inst_1",2 as "inst_2",3 as "inst_3",4 as "inst_4",5 as "inst_5",6 as "inst_6",7 as "inst_7",8 as "inst_8"))
+order by 1,2;

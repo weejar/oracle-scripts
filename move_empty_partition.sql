@@ -1,5 +1,6 @@
-purpose: drop empty table partitions until time(xxxxxxxx)
-version: 0.5
+
+purpose: move empty table partitions to another tablespace
+version: 0.1
 author:  anbob.com
 
 1, To create a temporary table for empty table partition
@@ -13,6 +14,7 @@ CREATE TABLE dbmt.empty_tab_partition
    partition_name       VARCHAR2 (30),
    bytes                NUMBER,
    partition_position   NUMBER,
+   tablespace_name      varchar2(50),
    last_analyze_time    DATE DEFAULT SYSDATE,
    flag                 NUMBER (1) default 1 not null ,   
    deleted              number(1)   --1 deleted  0 not
@@ -30,32 +32,23 @@ DECLARE
    -- note:  partition name end with yyyymm format and later than 2015-1-1
    -- hist : 2018-2-5  exclude recyclebin segment
    v_cnt   NUMBER;
-
+   v_commit number:=0;
    CURSOR cur1
    IS
       SELECT owner,
              segment_name,
              partition_name,
+			 tablespace_name,
              bytes
         FROM dba_segments
-       WHERE    blocks<=1024 -- bytes < 5 * 1024 * 1024
-             AND REGEXP_LIKE (partition_name, '20[0-4]{2}[0-9]{2,4}$')
+       WHERE     blocks<=1024 -- bytes < 5 * 1024 * 1024
              AND segment_type = 'TABLE PARTITION'
 			 and segment_name not like 'BIN%'
-			 and owner in('ACCOUNT','TBCS');    ---- list drop schema, need modify
+			 and tablespace_name in(select distinct tablespace_name from dba_data_files where online_status='OFFLINE');
 BEGIN
    FOR it IN cur1
    LOOP
    
---     dbms_output.put_line('select count(*) into v_cnt from '
---            || it.owner
---            || '.'
---            || it.segment_name
---            || ' partition( '
---            || it.partition_name
---            || ') where rownum<2');
-
-
       EXECUTE IMMEDIATE
             'select count(*)  from '
          || it.owner
@@ -68,21 +61,22 @@ BEGIN
       IF v_cnt < 1
       THEN
          EXECUTE IMMEDIATE
-            'insert into dbmt.empty_tab_partition(owner,table_name,partition_name,bytes) values(:1,:2,:3,:4)'
+            'insert into dbmt.empty_tab_partition(owner,table_name,partition_name,tablespace_name,bytes) values(:1,:2,:3,:4,:5)'
             USING it.owner,
                   it.segment_name,
                   it.partition_name,
+				  it.tablespace_name,
                   it.bytes;
+		 v_commit:=v_commit+1;
+		 
+		 if v_commit>=100 then
+		    commit;
+			v_commit:=0;
+		end if ;
       END IF;
+	  
    END LOOP;
    commit;
-   
-   -- do not drop partitions of last 6 months
-   update dbmt.empty_tab_partition set flag=-1
-    where to_date(REGEXP_substr(partition_name, '20[0-4]{2}[0-9]{2}$'),'yyyymm')  >add_months(sysdate,-6);
-    
-   commit;
-   
 END;
 
 
@@ -114,17 +108,23 @@ BEGIN
          || it.owner
          || '.'
          || it.table_name
-         || ' drop partition '
-         || it.partition_name);
+         || ' move  partition '
+         || it.partition_name
+		 ||' tablespace '
+		 || it.tablespace_name||'_new'
+		 ||' segment creation deferred');
 
 
       EXECUTE IMMEDIATE
-           'alter table '
-        || it.OWNER
-        || '.'
-        || it.table_name
-        || ' drop partition '
-        || it.partition_name;
+	   'alter table '
+         || it.owner
+         || '.'
+         || it.table_name
+         || ' move  partition '
+         || it.partition_name
+		 ||' tablespace '
+		 || it.tablespace_name||'_new'
+		 ||' segment creation deferred';
 
       EXECUTE IMMEDIATE
          'update dbmt.empty_tab_partition set deleted=1 where owner=:1 and table_name=:2 and partition_name=:3'
@@ -156,48 +156,8 @@ SELECT *
 
 6, check index invalid
 
-select 'alter index '||index_owner ||'.'||index_name||' rebuild partition '||partition_name||';' from dba_ind_partitions where status not in ('N/A', 'USABLE');
-
-7, 检查没有删掉的表
-SELECT table_owner,table_name,partition_name,last_analyzed
-  FROM dba_tab_partitions b
- WHERE EXISTS
-          (SELECT 1
-             FROM dbmt.empty_tab_partition c
-            WHERE     b.table_owner = c.owner
-                  AND b.table_name = c.table_name
-                  AND b.partition_name = c.partition_name);
-
-
-8, 根据表空间监控， 估算清理空间
-  SELECT DISTINCT TO_CHAR (exectime, 'yyyy-mm-dd hh24'), db_name
-    FROM DB_FREESPACE
-   WHERE db_name LIKE 'account%' AND exectime > SYSDATE - 1
-ORDER BY 1;
-
-WITH c
-     AS (  SELECT
-                 exectime, db_name, SUM (used_space) used_mb
-             FROM DB_FREESPACE
-            WHERE     db_name LIKE 'account%'
-                  AND exectime BETWEEN TO_DATE ('2016-07-20 10:00',
-                                                'yyyy-mm-dd hh24:mi')
-                                   AND TO_DATE ('2016-07-21 10:01',
-                                                'yyyy-mm-dd hh24:mi')
-         GROUP BY exectime, db_name),
-     d
-     AS (  SELECT db_name, MIN (used_mb) minused, MAX (used_mb) maxused
-             FROM c
-         GROUP BY db_name)
-SELECT db_name,
-       minused,
-       maxused,
-       maxused - minused diff
-  FROM d;
-
-DBNAME		MIN			MAX			DIFF
---------	--------	--------	------
-accountb	12064.22	12375.81	311.59
-accountc	11181.82	11615.72	433.9
-accountd	12455.87	12850.34	394.47
-accounta	5541.1	     6763.47	122.37
+select 'alter index '||index_owner ||'.'||index_name||' rebuild partition '||partition_name||' ;' from dba_ind_partitions where status not in ('N/A', 'USABLE')  
+ union all 
+ select 'alter index '||owner||'.'||index_name||' rebuild;' from dba_indexes where  status not in ('VALID', 'N/A')  
+ union all 
+ select 'alter index '||index_owner ||'.'||index_name||' rebuild subpartition '||subpartition_name||' ;' from   dba_ind_subpartitions where status not in ('USABLE') ;

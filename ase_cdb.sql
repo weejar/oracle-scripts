@@ -1,5 +1,5 @@
 -- file: ase_cdb.sql
--- version: 1.2
+-- version: 1.3
 -- author: weejar zhang(anbob.com)
 -- Desc. To Display all sessions of ForeGround not "inactive" for Multitenant
 -- Created: 2019/7/25
@@ -17,6 +17,10 @@ COL bs FOR a10
 COL ch# FOR 999
 COL cpu_value FOR 999,999,999 HEADING 'CPU'
 col pdb   for a10 
+col status for a7
+col hex for a10
+col last_call_et for 99999999 heading "last_call|et"
+
  select /*+ordered rule*/  pdb.name pdb, ses.username,   ses.sid,   
  CASE WHEN ses.state != 'WAITING' THEN 'On CPU / runqueue'  ELSE event end as event,   
  ses.machine,  regexp_substr(ses.module,'[^@]+') module,   

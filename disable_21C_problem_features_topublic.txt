@@ -1,0 +1,1 @@
+alter system set "_log_switch_tracing_timeout"=10000 scope=both ;

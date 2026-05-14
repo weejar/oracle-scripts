@@ -1,0 +1,484 @@
+-- version 1.4
+-- last update date 20190521
+
+Important Parameter Settings
+
+#   Bug 28111583
+alter system set "_ksxp_ipclw_enabled"=0 
+
+alter system set "_sql_plan_directive_mgmt_control" = 0 SCOPE=SPFILE; 
+-- alter system set "_optimizer_cost_based_transformation" = OFF SCOPE=SPFILE; if 12.2 disable will cause unnest fail
+-- alter system set "_optimizer_squ_bottomup" = FALSE SCOPE=SPFILE;  12.1 bug   ,if 12.2 disable will cause unnest fail
+alter system set "_rowsets_enabled" = FALSE SCOPE=SPFILE; 
+alter system set "_optimizer_partial_join_eval" = FALSE SCOPE=SPFILE;  -- 12.1 bug
+alter system set "_optimizer_aggr_groupby_elim" = FALSE SCOPE=SPFILE; 
+alter system set "_optimizer_reduce_groupby_key" = FALSE SCOPE=SPFILE; 
+alter system set "_optimizer_extended_cursor_sharing" = NONE SCOPE=SPFILE; 
+alter system set "_datafile_write_errors_crash_instance" = FALSE SCOPE=SPFILE; 
+alter system set cell_offload_processing = FALSE SCOPE=SPFILE; 
+alter system set "_cleanup_rollback_entries" = 400 SCOPE=SPFILE; 
+alter system set recovery_parallelism = 8 SCOPE=SPFILE; 
+alter system set inmemory_query = DISABLE SCOPE=SPFILE; 
+alter system set "_report_capture_cycle_time" = 0 SCOPE=SPFILE ; 
+alter system set pga_aggregate_limit = 0 SCOPE=SPFILE ; 
+alter system set "_log_segment_dump_parameter" = FALSE scope=both;
+alter system set "_log_segment_dump_patch" = FALSE scope=both;
+alter system set "_clusterwide_global_transactions" = false SCOPE=SPFILE;
+alter system set "_external_scn_logging_threshold_seconds" = 600 SCOPE=SPFILE;
+alter system set "_gby_hash_aggregation_enabled" = false SCOPE=SPFILE;
+alter system set "_memory_imm_mode_without_autosga" = false SCOPE=SPFILE;
+alter system set "_optim_peek_user_binds" = false SCOPE=SPFILE;
+alter system set "_optimizer_join_factorization"=false scope=spfile;
+alter system set "_optimizer_use_cbqt_star_transformation"=false scope=spfile;
+alter system set "_PX_use_large_pool"=true scope=spfile;
+alter system set "_serial_direct_read"=NEVER scope=spfile;
+alter system set deferred_segment_creation=false scope=spfile;
+alter system set distributed_lock_timeout=300 scope=spfile;
+ALTER SYSTEM SET enable_ddl_logging=TRUE SCOPE=BOTH;
+alter system set events '10949 trace name context forever, level 1';
+alter system set event ="28401 TRACE NAME CONTEXT FOREVER, LEVEL 1:10949 trace name context forever, level 1" scope=spfile;
+alter system set FAST_START_MTTR_TARGET = 300 scope=both;
+alter system set max_dump_file_size='2048M' scope=spfile;
+ALTER SYSTEM SET open_cursors = 1000 SCOPE=BOTH;
+alter system set optimizer_secure_view_merging=false;
+alter system set result_cache_max_size=0 scope=spfile;
+alter system set SHARED_SERVERS=0 scope=both
+ALTER SYSTEM SET trace_enabled = FALSE;
+alter system set parallel_max_servers=218 scope=spfile; 
+alter system set parallel_min_servers=0 scope=spfile;
+alter system set PARALLEL_SERVERS_TARGET =64 scope=spfile;
+alter system set audit_sys_operations=true scope=spfile;
+alter system set audit_trail=db scope=spfile;
+alter system set parallel_force_local=true scope=spfile;
+alter system set control_file_record_keep_time=31 scope=spfile;
+alter system set undo_retention=7200 scope=spfile;
+alter system set "_undo_autotune"=false scope=spfile;
+alter system set "_gc_policy_time"=0 scope=spfile;
+alter system set db_files=2048 scope=spfile;
+alter system set sec_case_sensitive_logon=false scope=spfile;
+alter system set sec_max_failed_login_attempts=10 scope=spfile;
+alter system set "_optimizer_adaptive_cursor_sharing"=false scope=spfile;
+alter system set "_optimizer_extended_cursor_sharing_rel"=none scope=spfile;
+alter system set "_partition_large_extents"=false scope=spfile;
+alter system set "_use_adaptive_log_file_sync"= false scope=spfile;
+alter system set "_trace_files_public"=true scope=spfile;
+alter system set "_optimizer_use_feedback"=false scope=spfile;
+alter system set db_create_file_dest= ' ' scope=spfile;
+alter system reset db_create_file_dest scope=spfile sid= '* ';
+alter system set "_ksxp_ipclw_enabled"=0 scope=spfile;
+
+
+
+alter system set optimizer_adaptive_features=false scope=both
+
+optimizer_adaptive_statistics=false  --defautl false
+optimizer_adaptive_plans=false     -- default true
+
+
+# for bug 27657712
+alter system set "_gc_fast_index_split_wait"=0 scope=spfile sid='*';
+
+
+# Batch Job Has Higher Execution Elapsed Time after Upgrading from 11.2.0.4 to 12.1.0.2 (ID 2182951.1)
+SQL> alter system set optimizer_adaptive_features=false;
+SQL> alter system set "_optimizer_dsdir_usage_control"=0;
+
+# for Bug 26633558  27231051  20275908
+_optimizer_nlj_hj_adaptive_join=false
+
+# QUERY IS SLOW IN 12.1.0.2 DUE TO HIGH PARSE TIME ( DYNAMIC SAMPLING)          
+set optimizer_dynamic_sampling=0;
+
+#  setting no_query_transformation
+alter session set "_sql_plan_directive_mgmt_control" = 0;
+alter session set "_optimizer_use_feedback"=false; 
+
+# mmon_salve use cpu higher
+alter system set "_report_capture_cycle_time"=0; /* Default is 60 seconds */  "Automatic Report Capturing Feature"
+
+alter system set "_dlm_stats_collect" = 0 scope = spfile sid = '*';
+
+# for BUG 22806698  on 12C R1
+alter system set  "_lm_enable_aff_benefit_stats"=false;
+
+# FOR BUG Bug 26436717 : RESULT CACHE: "BYPASS OBJECTS" INCORRECTLY USED BY WAITING PROCESSES 12.1.0.2     && latch free （Result Cache: RC Latch）
+The result cache usage by the Adaptive Dynamic Statistics mechanism can be disabled using the following:
+alter system set "_optimizer_ads_use_result_cache" = FALSE;
+
+NOTE: Disabling Result Cache usage through ADS mechanism can be disabled using the above parameter for quick workaround. However, It is recommended to do thorough testing of application with the database to avoid any issues by setting the parameter.
+
+alter system set "_optimizer_dsdir_usage_control" = 0;
+
+
+
+_optimizer_adaptive_plans=FALSE	FALSE	TRUE	"关闭自适应执行计划文档 ID 1945816.1 ORA-12850: COULD NOT ALLOCATE SLAVES ON ALL SPECIFIED INSTANCES: 2 NEEDED, 1 ALLOCATED with ""_optimizer_adaptive_plans"" enabled
+
+ALTER SYSTEM SET "_optimizer_adaptive_plans"=FALSE
+
+
+
+
+
+
+
+
+------------
+
+
+    _kks_obsolete_dump_threshold
+        What it does?
+            Introduced in Oracle 12.1.0.2 as an enhancement  to improve cursor sharing diagnostics by dumping information about an obsolete parent cursor and its child cursors after the parent cursor has been obsoleted N times. 
+        Problem:
+            Trace files can grow like giant mushrooms due to cursor invalidations
+        Solution:
+            See
+            MOS Note:1955319.1; Huge Trace Files Created Containing "----- Cursor Obsoletion Dump sql_id=%s -----":
+            for recommendations, range of values and options
+            Furthermore you may read:
+            Where do these large trace files come from in Oracle 12c?
+        Patches:
+            Fix included in DBBP 12.1.0.2.160216
+            Fix on-top of 12.1.0.2.13DBEngSysandDBIM
+            Since Feb 13, 2016 there's a one-off available but on Linux only - and only on top of a fresh 12.1.0.2 
+        Remarks:
+            The underlying cursor sharing problem needs to be investigated - always. 
+            If you have cursor sharing issues you may set this parameter higher therefore not every invalidation causes a dump, then investigate and solve the issue, and finally switch the parameter to 0 once the issue is taken care of. 
+            Please be aware that switching the parameter to 0 will lead to a lack of diagnostics information in case of cursor invalidations.
+
+
+    _use_single_log_writer
+        Problem:
+            Multiple log writers feature in Oracle Database 12c can cause instance recovery fails and unexpected halts
+        Solution:
+            Be aware of several issues such as:
+            MOS Note:1957710.1 - ALERT: Bug 21915719 Database hang or may fail to OPEN in 12c IBM AIX or HPUX Itanium - ORA-742, DEADLOCK or ORA-600 [kcrfrgv_nextlwn_scn] ORA-600 [krr_process_read_error_2] )
+            MOS Note:1957710.1 gives also recommendations on how to set this parameter
+            Apply Patch 21915719 or April DB PSU to prevent bug 21915719 from happening. The patch does not repair the inconsistencies in the online redo log causing the restart/open issue but prevents it from happening
+            .
+
+         
+    memory_target
+        What it does?
+            See the Oracle Documentation - it combines sga_target and pga_aggregate_targetvalues
+        Problem:
+            Unexpected failing database upgrades with settings of  memory_target < 1GB where equal settings ofsga_target and pga_aggregate_target didn't cause issues 
+            It prevents the important use of HugePages
+        Solution:
+            Avoid memory_target by any chance
+            Better use sga_target and pga_aggregate_target instead
+
+
+    pga_aggregate_limit
+        What it does?
+            It limits the overall PGA heap size
+            See the Oracle Documentation for further details
+        Problem:
+            It's not really a limit. According to Frits Hoogland's (Enkitec) presentation at DOAG Conference I learned that it does limit the PGA but beyond the defined limit. An error  ORA-04036: PGA memory used by the instance exceeds PGA_AGGREGATE_LIMIT gets triggered - but beyond the defined limit.
+            Find Frits' blog post for a lot more details and test scripts here (thanks Stefan for pointing me to it):
+            https://fritshoogland.wordpress.com/2014/12/15/oracle-database-operating-system-memory-allocation-management-for-pga/
+        Solution:
+            Be aware that it's not a true limit. 
+            Monitor your PGA growth - you can't rely exactly on pga_aggregate_limit
+	
+    parallel_min_servers
+        What it does?
+            See the Oracle Documentation - starts up a minimum number of parallel query slaves
+        Default:
+            CPU_COUNT * PARALLEL_THREADS_PER_CPU * 2
+        Behavior Change:
+            Setting it to a value below the default will let the database ignore it.
+            In Oracle Database 11g the default was 0
+            Compare 11.2.0.4 vs 12.1.0.2 on the same box:
+                11g:
+                SQL> show parameter parallel_min_servers
+                NAME                  TYPE     VALUE
+                --------------------- -------- ------
+                parallel_min_servers  integer  0
+                12c:
+                SQL> show parameter parallel_min_servers
+                NAME                  TYPE     VALUE
+                --------------------- -------- ------
+                parallel_min_servers  integer  8
+        Explanation:
+            This change got introduced to allow more parallel query workers being present to avoid the overhead of starting them up once a parallel operation is requested
+            See also MOS Note:1678111.1
+            PARALLEL_MIN_SERVERS Does Not Limit The Number Of Parallel Processes At Startup in 12c
+            .
+            .
+
+    job_queue_processes
+        What it does?
+            See the Oracle Documentation - value specifies the maximum number of job slaves to be created to execute jobs started by either DBMS_JOBS or DBMS_SCHEDULER
+        Default:
+            1000
+        Recommendation:
+            Set it to a rough equivalent of 2 * CPU cores
+        Explantion:
+            In Oracle Database 12c we introduced the automatic stats gathering during CTAS and IAS (into an empty table only) operations. This can potentially lead to too many jobs doing the stats gathering. Furthermore issues can happen due to the default of concurrent stats gathering.
+            Therefore a limitation of this parameter seems to be a good idea. 
+            Be aware when switching it to 0 - this will block all recompilation attempts. Furthermore generally no jobs can be executed anymore with  DBMS_JOBS or DBMS_SCHEDULER.
+            Multitenant behavior change:
+            In 12.1.0.1, job_queue_process was a Container Database (CDB) modifiable parameter (ie. at a global level). However, in 12.1.0.2, the job_queue_process parameter is not CDB modifiable; instead it's PDB modifiable which means each PDB can have its own job_queue_process value.  
+        More Information:
+            https://blogs.oracle.com/UPGRADE/entry/new_in_oracle_12c_optimizer 
+            https://blogs.oracle.com/optimizer/entry/gathering_optimizer_statistics_is_one
+            Ask Tom: http://tinyurl.com/job-queue-processes 
+            MOS Note 2118028.1 - JOB_QUEUE_PROCESSES Parameter, its Significance and Recommended value
+        Annotation:
+        I've had an email exchange with Stefan K?hler about the stats behavior for CTAS. As I couldn't myself reproduce the behavior we say at two customer with job_queue_processes=1000 and an heavy CTAS activity (which could be remedied by setting JQP to a lower value) I would put a question mark behind my above statement.
+        .
+        .
+
+    recyclebin
+        What it does?
+            See the Oracle Documentation - controls whether the Flashback Drop capability is turned on or off. If the parameter is set to OFF, then dropped tables do not go into the recycle bin. If this parameter is set to ON, then dropped tables go into the recycle bin and can be recovered.
+        Default:
+            ON
+        Recommendation:
+            If the recyclebin is ON (the default) in your environment then empty it at least once per week. Create a default job in all your environments emptying the recycle bin every Sunday morning at 3am for instance:
+            SQL> purge DBA_RECYCLEBIN;
+        Explantion:
+            The recycle bin is on in every database by default since Oracle 10g. The danger is that it may not be emptied but especially on developer databases many objects may be created and dropped again. As a result the dropped objects and its dependents still stay in the database until the space needs to be reclaimed. That means, they exist in the data dictionary as well, for instance in TAB$. Their name is different now starting with "BIN$..." instead of "EMP" - but they will blow up your dictionary. And emptying it not often enough may introduce a performance dip to your system as the cleanup of many objects can be quite resource intense
+            Check your current recycle bins:
+            SQL > SHOW RECYCLEBIN;
+            ORIGINAL NAME RECYCLEBIN NAME              OBJECT TYPE DROP TIME
+            ------------- ---------------------------- ----------- -------------------
+            TEST_RBIN     BIN$2e51YTaSK8TL/mPy+FuA==$0 TABLE       2010-05-27:15:23:45
+            TEST_RBIN     BIN$5dF60S3GSEOSSYREaqCg==$0 TABLE       2010-05-27:15:23:43
+            TEST_RBIN     BIN$JHCDN9YwQRXjXGOJcCIg==$0 TABLE       2010-05-27:15:23:42
+        More Information:
+            PURGE command
+            Using FLASHBACK DROP and managing the recycle bin
+
+.
+.
+
+    deferred_segment_creation
+        What it does?
+            See the Oracle Documentation - set to the default (TRUE), then segments for tables and their dependent objects (LOBs, indexes) will not be created until the first row is inserted into the table
+        Default:
+            TRUE
+        Recommendation:
+            Set it to FALSE unless you plan to create a larger number of tables/indexes knowing that you won't populate many of them.
+        Explantion/Risk:
+            If my understanding is correct this parameter got introduced with Oracle Database 11.2 in order to save space when applications such as EBS, Siebel or SAP create tons of tables and indexes which never may get used as you don't work with the matching module of the software
+            The risk can be that certain query check DBA_SEGMENTS and/or DBA_EXTENTS - and if there's no segment allocated you won't find an indication about the existence of the object in there - but it actually exists. Furthermore we have seen issues with Data Pump workers getting contention, and some other things. 
+        More Information:
+            The documentation has become now pretty conservative as well since Oracle 11.2.0.4 and I'll second that:
+            Before creating a set of tables, if it is known that a significant number of them will not be populated, then consider setting this parameter to true. This saves disk space and minimizes install time.
+
+参数名称	参数类型	"现生产库设置(crm1)"	9月7日12c上的设置值(thrbdb1)	"12c上的标准设置值"	与10g生产库的变化情况	12c上的缺省值	12c默认？	动态修改？	描述	说明
+archive_lag_target	归档	0	1200	1200	12c新增	0	否	是	强制执行一次Log switch操作的最大时长。	
+db_recovery_file_dest_size	归档与闪回	0	200G	需按库设置	12c新增		否	是		可以动态修改。
+db_flashback_retention_target	闪回	N/A	1440	1440	12c新增	1440	是	是		可以动态修改。
+resource_manager_plan	资源管理器		DEFAULT_PLAN	空值	12c新增	无	否	是	指定数据库所使用的资源管理器计划。	不启用资源管理器。
+os_authent_prefix	登录	ops$	空值	空值	12c新增	OPS$	否	否		是否需要？
+db_block_checksum	数据块检查	TRUE	FULL	FULL	12c新增	TYPICAL	否	是	启用校验和机制对数据文件和日志文件进行检查	
+deferred_segment_creation	新特性相关	N/A	FALSE	FALSE	12c新增	50	否	是	禁用 Deferred Segment Creation 特性	
+_use_adaptive_log_file_sync	新特性相关	N/A	TRUE	FALSE	12c新增	TRUE	否	是	禁用 LGWR 进程的自适应写归档模式。	
+ddl_lock_timeout	锁	N/A	0	0	12c新增	0	是	否	允许等待DDL锁的最大时长。	
+_rowsets_enabled	优化器	N/A	TRUE	FALSE	12c新增	TRUE	否	是	某些情况引起执行计划异常。	
+_optimizer_adaptive_plans	优化器	N/A	TRUE	FALSE	12c新增	TRUE	否	是	禁用 Adaptive Query Optimization 新特性	
+_optimizer_partial_join_eval	优化器	N/A	TRUE	FALSE	12c新增	TRUE	否	是	禁用新特性	
+_optimizer_aggr_groupby_elim	优化器	N/A	TRUE	FALSE	12c新增	TRUE	否	是	禁用新特性	
+_optimizer_reduce_groupby_key	优化器	N/A	TRUE	FALSE	12c新增	TRUE	否	是	禁用新特性	
+_optimizer_adaptive_cursor_sharing	优化器：ACS	N/A	TRUE	FALSE	12c新增	TRUE	否	是	禁用Adaptive Cursor Sharing特性	
+_optimizer_extended_cursor_sharing	优化器：ACS	N/A	UDO	none	12c新增	UDO	否	是	禁用Adaptive Cursor Sharing特性	
+_optimizer_extended_cursor_sharing_rel	优化器：ACS	N/A	SIMPLE	none	12c新增	SIMPLE	否	是	禁用Adaptive Cursor Sharing特性	
+_gc_policy_time	RAC: DRM	N/A	0	0	12c新增	SIMPLE	否	否	禁用RAC的DRM特性	
+_gc_affinity_time	RAC: DRM	0	N/A	N/A	废弃	N/A	N/A	N/A		
+_gc_undo_affinity	RAC: DRM	FALSE	FALSE	TRUE	废弃	TRUE	是	否		
+gcs_server_processes	RAC: GC	N/A	6	至少8个	12c新增	10(thrbin01)	否	否	设置该参数值至少为8，减少出现gc相关等待事件	
+_highthreshold_undoretention	AUM	N/A	7200	缺省值	12c新增	派生值	是	是	允许自动调整undo retention的最大值	恢复使用默认值。
+db_create_file_dest	OMF	N/A	+THRB_DAT1	空值	12c新增	无	是	是		避免可能的 Bug
+_datafile_write_errors_crash_instance	杂项参数	N/A	FALSE	FALSE	12c新增	TRUE	否	是	当非系统表空间的数据文件出现I/O问题时，不强制将实例crash。	
+cell_offload_processing	新特性相关	N/A	FALSE	FALSE	12c新增	TRUE	否	是		
+result_cache_max_size	新特性相关	N/A	0	0	12c新增		否	是	设定分配给 Result Cache 的SGA内存容量。	
+parallel_force_local	并行服务器	N/A	TRUE	TRUE	12c新增	FALSE	否	是	仅在本地实例启用并行服务器，减少GC开销。	
+_PX_use_large_pool	并行服务器	FALSE	FALSE	TRUE	12c新增	FALSE	否	否	是否在 Large pool 中存放并行服务器的消息	
+_ktb_debug_flags	ADG	N/A	8	8	12c新增		否	是		
+_log_deletion_policy	ADG	mandatory	ALL	ALL	12c新增		否	是		
+standby_file_management	ADG	MANUAL	auto	auto	12c新增		否	是		
+memory_target	AMM	N/A	0	0	12c新增	派生值	否	是	禁用AMM	
+memory_max_target	AMM	N/A	0	0	12c新增		否	否	禁用AMM	
+_memory_imm_mode_without_autosga	ASMM	N/A	TRUE	FALSE	12c新增		否	是	禁用ASMM	
+inmemory_size	In-Memory	N/A	0	0	12c新增	TRUE	否	否	禁用12c In-memory特性	
+inmemory_query	In-Memory	N/A	ENABLE	DISABLE	12c新增	0	否	是	禁用12c In-memory特性	
+
+
+
+
+alter system set "_optimizer_adaptive_cursor_sharing"=false; 
+
+_optimizer_use_feedback = false /* disables the use of statistics feedback for subsequent executions. Default is True. */
+_optimizer_gather_feedback = false /* disables the gathering of execution feedback in the optimizer. Default is True. */
+
+Disable extended or adaptive cursor sharing with either:
+alter system set "_optimizer_extended_cursor_sharing"=none;  --UDO
+alter system set "_optimizer_extended_cursor_sharing_rel"=none; -- simple
+
+by setting the parameter "_cursor_obsolete_threshold" to a lower value than the 12.1 default one (1024), 12.2 default 8192:
+       alter system set "_cursor_obsolete_threshold"=200 scope=both;
+and restarting the instance.
+
+
+# strong recommendations
+
+### 12.2 #######
+alter system set "_optimizer_aggr_groupby_elim"=false;
+alter system ste "_drop_stat_segment"=1;
+alter system ste "_common_data_view_enabled"=false;
+alter system ste "_optimizer_dsdir_usage_control"=0;
+alter system ste "optimizer_adaptive_feature"=false;
+alter system ste "optimizer_adaptive_plans"=false;
+alter system ste "_optimizer_gather_feedback"=false;
+alter system ste "_optimizer_enable_extended_stats"=false;
+alter system ste "optimizer_ads_use_result_cache"=false;
+alter system ste "_use_single_log_writer"=true;
+
+_optimizer_use_feedback=false
+alter system set "_optimizer_extended_cursor_sharing_rel"=none scope=both;
+alter system set "_optimizer_extended_cursor_sharing"=none scope= both;
+alter system set "_optimizer_adaptive_cursor_sharing"=false scope= both;
+
+
+###　12.1 ####
+# for bug  21373473
+Set _ges_direct_free_res_type="CTARAHDXBB" 
+
+# 12.1.0.2 Bug 22780387  ORA-600 [qerwnswpxresetworkareas.optmismatch] during parallel execution
+ - alter session set optimizer_features_enable='11.2.0.4';
+ - alter session set "_px_wif_extend_distribution_keys" = false;
+ - alter session set "_px_wif_dfo_declumping" = off;
+
+# impdp bug 28373676
+alter system reset "_lm_share_lock_opt" scope=spfile sid='*'; 
+
+
+# for asm
+processes=2048
+large_pool_size=512M
+memory_max_target=4G
+memory_target=2G
+
+# user profile
+alter profile "DEFAULT" limit PASSWORD_GRACE_TIME UNLIMITED;
+alter profile "DEFAULT" limit PASSWORD_LIFE_TIME UNLIMITED;
+alter profile "DEFAULT" limit PASSWORD_LOCK_TIME UNLIMITED;
+alter profile "DEFAULT" limit FAILED_LOGIN_ATTEMPTS UNLIMITED;
+
+
+alter system set recyclebin=on scope=spfile;
+alter system set undo_retention=5400 scope=spfile;
+alter system set processes=2000 scope=spfile;
+alter system set db_files=2000 scope=spfile;
+alter system set audit_trail=none scope=spfile;
+alter system set memory_max_target=0 scope=spfile;
+alter system set memory_target=0 scope=spfile;
+alter system set max_dump_file_size=104857600 scope=spfile;
+alter system set control_file_record_keep_time=31 scope=spfile;
+alter system set open_cursors=1000 scope=spfile;
+alter system set utl_file_dir='/tmp' scope=spfile;
+alter system set deferred_segment_creation=FALSE scope=spfile;
+alter system set fast_start_parallel_rollback='LOW' scope=spfile;
+alter system set pga_aggregate_limit=0 scope=spfile;
+alter system set sec_case_sensitive_logon=FALSE scope=spfile;
+alter system set temp_undo_enabled=FALSE scope=spfile;
+alter system set session_cached_cursors=300 scope=spfile;
+alter system set max_shared_servers=0 scope=spfile;
+alter system set shared_servers=0 scope=spfile;
+alter system set sec_max_failed_login_attempts=100 scope=spfile;
+alter system set open_links=40 scope=spfile;
+alter system set open_links_per_instance=40 scope=spfile;
+alter system set result_cache_max_size=0 scope=spfile;
+
+ alter system set "EXCLUDE_SEED_CDB_VIEW"=FALSE scope=both;
+ 
+ # for adg 
+  _adg_parselock_timeout= 3000.
+  
+  # for Bug 30265523
+_enable_rejection_cache = false
+
+# mmon use high cpu
+alter system set “_swrf_mmon_dbfus”=false;
+or
+alter system set “_optimizer_dsdir_usage_control” 0;
+
+# disable cuv, memory leak and every 6hour call
+
+$ srvctl stop cvu
+$ srvctl disable cvu
+$ srvctl status cvu
+
+
+# for hpux kernel
+
+参数名	Oracle推荐值
+aio_max_ops	>= 2048
+executable_stack	0
+filecache_min	5%
+filecache_max	10%
+ksi_alloc_max	>= nproc*8
+max_async_ports	>= nproc
+max_thread_proc	>= 1024
+maxdsiz	>= 1073741824
+maxdsiz_64bit	>= 2147483648
+maxssiz	>= 134217728
+maxssiz_64bit	>= 1073741824
+maxuprc	>= ((nproc*9)/10)+1
+msgmni	>= nproc
+msgtql	>= nproc
+ncsize	8*nproc+3072
+nflocks	>= nproc
+ninode	>= 8*nproc+2048
+nkthread	>= ((nproc*7)/4)+16
+nproc	>= 4096
+semmni	>= nproc
+semmns	>= semmni*32
+semmnu	>= nproc - 4
+semvmx	32767
+shmmax	允许Oracle所使用的物理内存的上限
+shmmni	>= 512
+shmseg	>= 120
+vps_ceiling	64
+
+
+# for aix kernel
+
+参数名	Oracle推荐值
+maxperm%	90
+minperm%	3
+maxclient%	90
+strict_maxperm	0
+strict_maxclient	1
+lru_file_repage	0
+page_steal_method	1
+minpout/maxpout	4096/8193
+vpm_xvcpus（for PowerVM  shared-processor pools）	2
+maxuproc	16384
+ncargs	256
+iocp	Available
+
+
+# The result cache usage by the Adaptive Dynamic Statistics mechanism can be disabled using the following:
+alter system set "_optimizer_ads_use_result_cache" = FALSE;
+
+# for After upgrade to 12c,  high "latch free" waits due to "enq: RC - Result Cache" is seen
+alter system set "_optimizer_dsdir_usage_control" = 0;
+
+# ORA 7445 [qeshrGetUHash_Fast] Raised From EM Agent (Doc ID 2383651.1)
+alter system set  "_rowsets_cdb_view_enabled"=false;
+
+
+# for 12.1   Bug 19614585 - Wrong Results / ORA-600 [kksgaGetNoAlloc_Int0] / ORA-600 [12406] / ORA-7445 / ORA-8103 / ORA-1555 from query on RAC ADG Physical Standby Database (Doc ID 19614585.8)
+_part_access_version_by_number=false
+
+
+# drop partition,purge partition , ISA, CTAS 会更新统计信息
+ALTER system SET "_optimizer_gather_stats_on_load"=FALSE;
+
+
+# 常归DML 会实时更新统计信息 产生row cache lock   dc_realtime_tabst
+ALTER SESSION SET "_optimizer_gather_stats_on_conventional_dml"=FALSE;
+ALTER SESSION SET "_optimizer_use_stats_on_conventional_dml"=FALSE;
