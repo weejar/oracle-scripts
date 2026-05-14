@@ -1,0 +1,748 @@
+# Author: weejar(anbob.com)
+# Version: 3.9
+# last update 2022-7-5
+
+
+REM ===============  OS feature =======================================
+HPUX  DISABLE APA OR upgrade APA newest version and install oracle patch abort APA
+      increate pv timeout and asyncdsk_io_timout=120  streams_sqmax and str_syncq_limit
+	  
+# datafile in local filesystem 
+
+	  
+SunOS DISABLE DISM , Auto memory manager issue. such as AMM , ASMM
+
+Linux DISABLE THP, ENABLED hugepage， Suse linux 老版本对hugepage的区别
+
+AIX power disable  AIX process折叠
+
+2. Increase udp_sendspace to 65536
+# no -o udp_sendspace=65536
+
+(
+# Enable hugepage
+/etc/security/limits.conf  unit size KB
+/etc/sysctl.conf
+# DISABLE THP /sys/kernel/mm/transparent_hugepage/enabled  --- linux 6.5 and above removed
+)
+
+推荐顺序 chronyd  NTP   CTSS, 但是ctss只检查NTP，不检查chronyd 所以注意CTSS和chronyd同时运行。
+# DISABLE NTP , Enable CTSS
+# chronyc   sources -v  from linux7 for NTP
+systemctl disable chrony
+
+# 19c CTSS 已检查chronyd
+
+
+## kdump crashdump, check cat /proc/cmdline
+
+# for rhel6
+/etc/kdump.conf
+
+crashkernel=512M
+
+# for rhel 7
+/etc/default/grub
+ 
+# ORA-15081: failed to submit an I/O operation to a disk due to Multipath Bug (Doc ID 2310630.1) 
+Upgrade multipath libraries in the operating system
+For Red Hat Linux, upgrade to device-mapper-multipath. 0.4.9-100.el6.x86_64 or higher
+
+ 如果平台为 Linux，请设置 Hugepage 并将内核参数 vm.min_free_kbytes 设置为保留“512MB”，-- 将 swappiness 设置为 100。
+ 
+-- cpu 最大性能模式
+$ tuned-adm active
+Current active profile: throughput-performance
+
+## disabling C States
+
+To limit a CPU to a certain C-state, you can pass the processor.max_cstate=X option in the kernel line of /boot/grub/grub.conf in RHEL 6 and below, or in /etc/sysconfig/grub, on the GRUB_CMDLINE_LINUX line in RHEL 7/RHEL 8. Remember that you'll need to propagate the changes to disk using grub2-mkconfig in RHEL 7/RHEL 8.
+
+# for OEL 6
+For disabling C States on OL6 Physical compute nodes at kernel level edit /boot/grub/grub.conf file and add idle=poll at the end of the current kernel line starting with "kernel /vmlinuz ........".
+
+##  Do not use the idle=poll kernel parameter on a """RHEL VM""" ,Using the idle=poll kernel parameter causes the host to consume 100% CPU
+intel_idle.max_cstate=0 processor.max_cstate=0 idle=poll intel_pstate=disable
+
+
+Why the OS might ignore BIOS settings
+The OS might ignore BIOS settings based on the idle driver which is in use. If one uses intel_idle (the default on intel machines) the OS can ignore ACPI and BIOS settings, i.e. the driver can re-enable the C-states. In case one disables intel_idle and uses the older acpi_idle driver the OS should follow the BIOS settings. One can disable the intel_idle driver by:
+
+    passing intel_idle.max_cstate=0 to kernel boot command line or
+    passing idle=* (where * can be e.g. poll, i.e. idle=poll)
+
+
+
+# REDHAT7.2 The default value for RemoveIPC in RHEL7.2 is yes.  In RHEL 7.3 and higher the default is no.
+1) Set RemoveIPC=no in /etc/systemd/logind.conf
+
+2) Reboot the server or restart systemd-logind as follows:
+     # systemctl daemon-reload
+    # systemctl restart systemd-logind
+
+# LINUX7
+oracle@ldrpt1:/home/oracle> cat /etc/default/grub
+GRUB_TIMEOUT=5
+GRUB_DISTRIBUTOR="$(sed 's, release .*$,,g' /etc/system-release)"
+GRUB_DEFAULT=saved
+GRUB_DISABLE_SUBMENU=true
+GRUB_TERMINAL_OUTPUT="console"
+
+GRUB_DISABLE_RECOVERY="true"
+GRUB_CMDLINE_LINUX="crashkernel=512M rd.lvm.lv=fusioncube/root rd.lvm.lv=fusioncube/swap rd.lvm.lv=fusioncube/usr rhgb quiet console=ttyS0,115200 console=tty0 intel_idle.max_cstate=0 processor.max_cstate=0 numa=off elevator=deadline transparent_hugepage=never"
+
+
+# 重启时lvm 等很久a stop job is running for monitoring of lvm2 mirrors
+systemctl stop lvm2-monitor.service
+systemctl disable lvm2-monitor.service
+
+
+# 内存回收模式
+zone_reclaim_mode=1  --default 0   
+根据zone_reclaim_mode的设置来决策是从下一个zone找空闲内存还是在zone内部进行回收。这个值为0时表示可以从下一个zone找可用内存，非0表示在本地回收。
+更激进的内存回收，可能会导致 sys cpu high
+
+
+
+# for Huawei 一体机 oracle建议
+kernel.shmall=197610245
+ke rnel.shmmax=647529250816
+kernel.shmmni=4096
+kernel.sem= 250 60000 100 240
+kernel.pid_max = 131072
+kernel.panic_on_oops=1
+kernel.randomize_va_space=0
+fs.file_max=26349267
+net.core.rmem_default=262144
+net.core.rmem_max=4194304
+net.core.wmem_default=262144
+net.core.wmem_max=1048576
+net.core.somaxconn=1024
+net.core.netdev_max_backlog=8192
+
+# 调整 send/receive   buffer space, 当使用UDP时，RAC出现"gc current/cr block congested"  或 lost ,overflow现象时
+-- linux
+net.core.rmem_default=262144
+net.core.rmem_max=4194304
+net.core.wmem_default=262144
+net.core.wmem_max=1048576
+
+-- aix 
+Set the udp_sendspace and udp_recvspace to the OS maximum with:
+no -o 
+
+
+
+# 每个心跳网卡参数调整为0或2，注意rp_filter值是取all和专用网卡配置值的max，所以要么全是0，要么是2，即不进行反向路径检查或源地址不可达时才进行丢弃：DBCA Second/last instance startup fails/ generic startup with ORA-03113 in 12.2 due to wrong rp_filter setting for private interconnect interfaces (Doc ID 2260078.1)
+net.ipv4.conf.Ibond0.rp_filter = 2
+net.ipv4.conf.ebond3.rp_filter = 1
+net.ipv4.conf.ib0.rp_filter = 2
+net.ipv4.conf.ib1.rp_filter = 2
+net.ipv4.conf.ib2.rp_filter = 2
+net.ipv4.conf.ib3.rp_filter = 2
+net.ipv4.ip_local_port_range=9000 65500
+net.ipv4.ipfrag_high_thresh=16777216
+net.ipv4.ipfrag_low_thresh=15728640
+net.ipv4.ipfrag_time=60
+fs.aio_max_nr=4194304
+kernel.hung_task_panic=0
+vm.dirty_background_ratio=3
+vm.dirty_ratio=30
+vm.dirty_expire_centisecs=500
+vm.dirty_writeback_centisecs=100
+vm.max_map_count=1048576    -- limit max memory of one process, N* _realfree_heap_pagesize_hint
+vm.min_free_kbytes= 4194304
+vm.swappiness=10
+vm.hugetlb_shm_group = 1001 ##o install gid 为 1001
+vm.nr_hugepages= 1 92988
+
+# maxstartups 建议调到100， 默认10
+egrep -i maxstartups /etc/ssh/sshd_config
+
+#disable abrt service
+
+[RHEL 7,8] :
+systemctl disable abrtd.service
+[RHEL 6] :
+# service abrtd stop
+
+# Install OSW .EXaSW
+
+
+# for RHEL 6.6 and above network tune  ipc time out
+net.ipv4.ipfrag_high_thresh = 16777216    cpus *130000 
+net.ipv4.ipfrag_low_thresh = 15728640
+net.ipv4.ipfrag_time = 120
+net.ipv4.ipfrag_secret_interval = 600
+net.ipv4.ipfrag_max_dist = 1024
+
+net.core.netdev_max_backlog = 2000
+net.core.netdev_budget = 600
+
+# linux 6.6
+1. Disable cpuspeed service
+# service cpuspeed stop
+# chkconfig cpuspeed off
+
+2. Limit udev child creation by:
+# udevadm --children-max=32
+
+调速dirty filesystem 占用参数，防止默认的40%过大，刷新时hang
+vm.dirty_background_ratio = 1    # default 10
+vm.dirty_ratio = 3               # default 40
+
+
+
+RHEL7释放slab 碎片
+## Set the parameter
+# echo 6 > /proc/sys/fs/negative-dentry-limit    // not reboot persistent
+-or-
+# echo 'fs.negative-dentry-limit=6' >> /etc/sysctl.conf  // reboot persistent
+# sysctl -p 
+
+
+--------------------------- 网络配置 ---------------------------
+ifconfig lo mtu 16436  ID 2041723.1
+Private 网卡 的 M TU 调整到 9000 或以上；如果 P rivate 网卡采用 I nfiniband 需要把 IB 网卡的收发参数
+调整至 TX:4096 RX:4096
+
+
+--------------------------- 强烈建议 ---------------------------
+
+# Swapping for Oracle is bad........
+ vm.swappiness=10
+# Maximum percentage of active memory that can have dirty pages
+ vm.dirty_background_ratio=3
+# Maximum percentage of total memory that can have dirty pages
+ vm.dirty_ratio=15
+# How long data can be in page cache before being expired (hundreths ofa second)
+ vm.dirty_expire_centisecs=500
+# How often pdflush is activated to clean dirty pages (hundreths of asecond)
+ vm.dirty_writeback_centisecs=100
+
+# for ORA-27090
+fs.aio_max_nr=4194304
+
+kernel.hung_task_panic=0
+
+
+--------------------------- Stop the firewall ---------------------------
+ 
+#systemctl status firewalld
+#systemctl stop firewalld
+#systemctl disable firewalld
+
+
+--------------------------- Set SELINUX to Permissive. ---------------------------
+
+#vi /etc/sysconfig/selinux
+   SELINUX=permissive 
+
+--------------------------- Disable NetwokManager and Avahi daemon. ---------------------------
+
+Once avahi is disabled, restart the stack or reboot the node.
+
+#systemctl status NetworkManager.service
+#systemctl mask NetworkManager.service
+#systemctl stop NetworkManager.service
+#systemctl disable NetworkManager.service
+
+On Oracle Linux/Redhat Linux, "NOZEROCONF=yes" must be included in /etc/sysconfig/network
+
+
+The solution is to shutdown and disable 3rd party zeroconf mDNS process, in this case, avahi-daemon
+
+To shut it down, as root:
+# /etc/init.d/avahi-daemon stop
+
+To disable it, as root:
+# /sbin/chkconfig  avahi-daemon off 
+
+-- avahi-daemon mDNS
+========================
+To stop the avahi-daemon, for OL5/OL6:
+
+# service avahi-dnsconfd stop   # ignore any errors
+# service avahi-daemon stop
+# chkconfig avahi-dnsconfd off
+# chkconfig avahi-daemon off
+for OL7:
+
+# systemctl status avahi-daemon.socket avahi-daemon.service
+# systemctl mask avahi-daemon.socket avahi-daemon.service
+# systemctl stop avahi-daemon.socket avahi-daemon.service
+# systemctl disable avahi-daemon.socket avahi-daemon.service.
+
+
+
+--------------------------- disable NUMA ：---------------------------
+编辑
+/etc/default/grub 增加如下几项 注意要写到双引号之内
+numa=off elevator=deadline transparent_hugepage=never
+
+验证 numa:
+1. 检查 OS 是否开启 NUMA
+numactl hardware
+2. 判断系统是否开启了 numa 功能
+grep -i numa /var/log/dmesg
+如果出现了：
+"No NUMA configuration found" ，则证明是关闭了 numa 功能，如果是其他内容，则为开启了 numa
+
+
+# EXADATA , disable numa balance
+kernel.NUMA_BALANCING=0
+note: 如果禁用BALC会导致 memory fragment,所以建议禁用NUMA
+
+---------------------------  验证透明大页：---------------------------
+cat /sys/kernel/mm/transparent_hugepage/enabled
+cat /proc/meminfo|grep Huge
+
+--------------------------- 验证 I/O Scheduler ：---------------------------
+
+查看设备当前的 I/O 调度器假设磁盘名称是/dev/sda
+
+目前默认为cfq，算法比较中庸，固态硬盘可调整为noop；针对机械磁盘，不同的应用可以对比测试下deadline等其他调度算法的性能表现。对于数据库等应用，避免饿死的情况，建议调整为deadline。
+
+#cat /sys/block/sda/queue/scheduler
+noop [deadline] cfq
+
+# 批量检查 
+for i in b c d e f g;do
+cat /sys/block/sd${i}/queue/scheduler
+done
+
+for disk in $(lsscsi | grep PURE | awk '{print $6}'); do
+    echo deadline > /sys/block/${disk##/dev/}/queue/scheduler
+done
+
+
+# cat /sys/block/${ASM_DISK}/queue/scheduler
+noop [deadline] cfq
+
+I/O Scheduler Selection to Optimize Oracle VM Performance (Doc ID 2069125.1)
+# vi /etc/udev/rules.d/60-oracle-schedulers.rules
+Add the following line to the rules file and save it:
+
+ACTION=="add|change", KERNEL=="sd[a-z]", ATTR{queue/rotational}=="0", ATTR{queue/scheduler}="deadline"
+
+但在没有寻道和旋转延迟组件的 SSD 存储等情况下是不必要的并且不是最佳的。在其他情况下，“完全公平”（cfq）调度程序可能会提供更好的性能。
+
+
+
+ORACLE_HOME 不要在rootvg, 和OS 在一起，会影响后台进程
+
+
+# clear undo
+ Increase the parameter '_cleanup_rollback_entries' to 400. The default is 100.
+ 
+# bug 14672057 gc cr   >0
+ alter system set "_MAX_CR_ROLLBACKS"=200 scope=spfile sid='*';
+ 
+ 
+ 
+ 
+
+REM ===============================FOR STABLE OPTIMIZER===================================
+
+alter system set "_enable_automatic_sqltune"=false scope=both;       Automatic SQL Tuning Advisory enabled parameter  
+
+OR
+BEGIN
+dbms_auto_task_admin.disable(
+    client_name => 'sql tuning advisor',
+    operation   => NULL,
+    window_name => NULL);
+END;
+/
+
+select client_name,status from DBA_AUTOTASK_CLIENT where client_name='sql tuning advisor';
+
+#以下优化器参数均可以在session/system级别设置，一般优化器参数均可以在线修改            
+
+alter system set "_serial_direct_read"=false;                           --Enable direct read in serial.     
+alter system set "_nlj_batching_enabled" = 0;                                    --enable batching of the RHS IO in NLJ
+alter system set "_optimizer_undo_cost_change" = '10.2.0.4'; -- 11.2.0.1
+alter system set "_optimizer_null_aware_antijoin" = false; -- true                  --null-aware antijoin parameter
+alter system set "_optimizer_extend_jppd_view_types" = false; -- true               --join pred pushdown on group-by, distinct, semi-/anti-joined view
+alter system set "_replace_virtual_columns" = false; -- true                        --replace expressions with virtual columns
+alter system set "_first_k_rows_dynamic_proration" = false; -- true  -- @Bug 6674254: FIRST_ROWS(X) HINT CAUSING BAD PLAN
+alter system set "_bloom_pruning_enabled" = false; -- true
+alter system set "_optimizer_multi_level_push_pred" = false; -- true
+alter system set "_optimizer_group_by_placement" = false; -- true
+alter system set "_optimizer_extended_cursor_sharing_rel" = none; -- simple
+alter system set "_optimizer_adaptive_cursor_sharing" = false; -- true
+alter system set "_optimizer_improve_selectivity" = false ; -- true
+alter system set "_optimizer_enable_density_improvements" = false; -- true
+alter system set "_optimizer_native_full_outer_join" = off; -- force
+alter system set "_optimizer_enable_extended_stats" = false; -- true
+alter system set "_nlj_batching_enabled" = 0; -- 1
+alter system set "_optimizer_extended_stats_usage_control" = 255; -- 224
+alter system set "_bloom_folding_enabled" = false; -- true
+alter system set "_optimizer_coalesce_subqueries" = false; -- true
+alter system set "_optimizer_fast_pred_transitivity" = false; -- true
+alter system set "_optimizer_fast_access_pred_analysis" = false; -- true
+alter system set "_optimizer_unnest_disjunctive_subq" = false; -- true
+alter system set "_optimizer_unnest_corr_set_subq" = false; -- true
+alter system set "_optimizer_distinct_agg_transform" = false; -- true
+alter system set "_aggregation_optimization_settings" = 32; -- 0
+alter system set "_optimizer_connect_by_elim_dups" = false; -- true
+alter system set "_optimizer_eliminate_filtering_join" = false; -- true
+alter system set "_connect_by_use_union_all" = old_plan_mode; --true
+alter system set "_optimizer_join_factorization" = false; -- true
+alter system set "_optimizer_use_cbqt_star_transformation" = false; -- true
+alter system set "_optimizer_table_expansion" = false ; -- true
+alter system set "_and_pruning_enabled" = false ; -- true
+alter system set "_optimizer_distinct_placement" = false ; -- true
+alter system set "_optimizer_use_feedback" = false ; -- true
+alter system set "_optimizer_try_st_before_jppd" = false ; -- true
+
+11g的Cardinality feedback可能会导致执行计划的不稳定：
+alter system set "_optimizer_use_feedback"=false sid ='*' scope=spfile;
+
+alter session set "_optimizer_cartesian_enabled" = false;
+alter session set "_smm_auto_cost_enabled" = false;
+
+# chm rep db 库文件过大
+[root@db1 db1]# oclumon manage -get repsize        显示多少秒，当前是61624秒
+CHM Repository Size = 61624
+[root@db1 db1]# oclumon manage -repos resize   259200     调整为保留三天
+
+# EVENT LIST 
+
+REM ================================= event ==========================
+
+alter system set event='28401 trace name context forever,level 1:10949 trace name context forever,level 1:60025 TRACE NAME CONTEXT FOREVER'  sid='*' scope=spfile;
+ 
+alter system set events '28401 trace name context forever,level 1:10949 trace name context forever,level 1:60025 TRACE NAME CONTEXT FOREVER'  
+
+REM==ATTENTION=======================================================
+
+alter system set "_optim_peek_user_binds"=false;           ==> 禁用BIND PEEK特性，该特性在10g中有
+
+REM================================result cache=============================
+
+#alter system set client_result_cache_size=0 scope=spfile;
+#alter system set result_cache_mode=MANUAL;
+
+REM================================Health Check=============================
+
+alter system set "_diag_hm_rc_enabled"=false;               ==>关闭health monitor
+
+REM================================MEMORY===================================
+
+alter system reset memory_target;
+alter system reset memory_max_target;          ==>禁用AMM特性
+
+alter system set "_memory_imm_mode_without_autosga"=false scope=both; 
+alter system set "_enable_shared_pool_durations"=false scope=spfile;
+
+
+REM ===============================SEGMENT==================================
+
+alter system set deferred_segment_creation=false; 
+
+REM ===============================RESOURCE MANAGER ==================================
+
+_resource_manager_always_on Not initializing the resource manager because _resource_manager_always_on=FALSE
+
+#alter system set "_resource_manager_always_on"=false scope=spfile;;
+
+alter system set max_dump_file_size='4096M' scope=spfile sid='*';
+
+REM===============================IO ERROR===========================================
+
+alter system set "_datafile_write_errors_crash_instance"=false ;
+
+ORA-15081: failed to submit an I/O operation to a disk   防止IO错误 ORA-15081等DBWR crash instance
+ORA-15081: failed to submit an I/O operation to a disk
+
+可以通过隐藏参数_datafile_write_errors_crash_instance控制DBWR进程写出到数据文件遇到I/O问题时的表现：
+在版本11.2.0.2中：
+1. 默认情况下，若是RAC或未启用归档的实例或出现问题的是SYSTEM表空间的数据文件会导致实例终止；其他情况下，会造成相关数据文件被OFFLINE。
+
+2.若该参数设置为TRUE，则在DBWR写文件出现问题时总是终止本实例
+
+3. 若设置为FALSE，仅在未启用归档或SYSTEM表空间的数据文件的情况下会终止实例；
+
+
+"@ The new behavior is defined by _datafile_write_errors_crash_instance 
+@ parameter. Parameter has no default value and 3 different behaviors depending 
+@ if it is set and to which value. For default behavior (param not set) the 
+@ instance is crashed if RAC or archivelog mode is disabled or this is a system 
+@ tablespace. Otherwise the file is offlined. If param is set to TRUE, it is 
+@ crashed in all cases. If set to FALSE, it is crashed only if archivelog mode 
+@ is disabled or this is a system tablespace."
+
+REM ===============================SECURITY==================================
+
+alter system set sec_case_sensitive_logon=false;
+
+#alter system set sec_max_failed_login_attempts=2147483647 scope=spfile;              ==>新的初始化参数 SEC_MAX_FAILED_LOGIN_ATTEMPTS 的默认设置为10，表示在连接尝试达到指定次数后会自动断开连接。即使未启用口令概要文件，也会强制实施此参数。 此参数可以防止程序连接到数据库，然后成百上千次地尝试口令以通过验证。 
+
+
+alter profile DEFAULT limit FAILED_LOGIN_ATTEMPTS unlimited;
+alter profile DEFAULT limit PASSWORD_LIFE_TIME unlimited;
+
+sec_protocol_error_further_action  假设损坏的数据包来自可能的恶意客户机。SEC_PROTOCOL_ERROR_FURTHER_ACTION 参数指定了要对客户机连接执行的操作：继续、断开连接或延迟接受请求。另一参数 SEC_PROTOCOL_ERROR_TRACE_ACTION 指定了监视操作：NONE、TRACE、LOG 或 ALERT。 
+
+sec_protocol_error_trace_action
+sec_return_server_release_banner
+
+REM==========================RAC  ======================================
+# DISABLE  DRM
+alter system set "_fairness_threshold"=6 scope=spfile;
+alter system set "_gc_read_mostly_locking"=false scope=spfile;  --参数 需要重启，且所有实例要一致关闭后启动。如果禁用DRM 不再需要该参数
+alter system set "_gc_policy_time"=0 scope=spfile;
+alter system set "_gc_undo_affinity"=false sid='*';
+
+#  alter system set "_gc_bypass_readers"=false scope=spfile;  --true      not need reboot
+alter system set "_gc_defer_time"=3 scope=spfile sid='*';
+
+
+#禁用ora.crf，避免osysmond进程大量吃系统资源（如CPU）以root用户在每个RAC节点执行以下语句：
+crsctl modify res ora.crf -attr "AUTO_START=never" -init
+crsctl modify res ora.crf -attr "ENABLED=0" -init
+crsctl stop res ora.crf -init
+
+
+REM==========================ASM=========================================
+alter system set large_pool_size=128M scope=spfile sid='*';
+# Increase AMM size
+alter system set memory_target=1536m scope=spfile;
+
+# Bug 22936319 - High event 'gc buffer busy acquire' during storage server in maintance 
+Set "_asm_fd_cln_on_fg" = FALSE
+
+# set disk_repair_time  default 3.5H
+alter diskgroup xx set attribute 'disk_repair_time'='8h';
+
+
+
+REM===========================LOCK=======================================
+
+alter system set ddl_lock_timeout=0;
+
+# alter system set enable_ddl_logging=true;  记录DDL
+
+=============
+_subquery_pruning_enabled (enable the useof subquery predicates to perform pruning) 
+可能导致执行“insert select”查询会花费大量时间生成执行计划，进行trace可以看到大量对TBL$OR$IDX$PART$NUM的等待。
+
+
+# disable adaptive log file sync ,post/wait
+
+ALTER SYSTEM SET "_use_adaptive_log_file_sync"= false; --true
+
+2). 设置resize的频率不能少于16分钟
+
+alter system set "_memory_broker_stat_interval"=999;
+
+
+# 当有子查询时有可能会产生错误结果 11.2.0.3 影响
+alter session set "_optimizer_filter_pushdown"=false;
+
+
+================================= audit =====================================
+# disable logon in/out audit
+11g默认打开了登录、登出审计，如果短连接比较多，则:
+1、可能会导致system表空间被撑爆
+2、在执行” insert into sys.aud$...” 这个SQL时大量软解析，消耗大量CPU时间，可能导致连接超时
+建议关闭记录的每一次登录、登出操作。在sqlplus中执行如
+下语句：
+noaudit create session;
+
+# disable undo/tmp auto extend
+
+# Disable UNDO AUTO MANAGER
+alter system set "_undo_autotune"=false scope=spfile sid='*';
+alter system set undo_retention=10800 scope=spfile sid='*';
+
+========================= parallel ========================
+
+alter system set parallel_force_local=true scope=spfile sid='*';
+alter system set parallel_max_servers=<number cpu*2> scope=spfile sid='*';
+alter system set "_px_use_large_pool"=true sid ='*' scope=spfile;
+
+
+==== bug =========
+
+_cursor_features_enabled =514  - default 2
+
+
+# dump file size limit
+alter system set max_dump_file_size='4096M' scope=spfile sid='*';
+
+
+################  strongly recommend  ####
+
+alter system set "_optimizer_use_feedback"=false sid ='*' scope=spfile;
+alter system set "_optimizer_adaptive_cursor_sharing"=false sid='*' scope=spfile;
+alter system set "_optimizer_extended_cursor_sharing"=none sid='*' scope=spfile;
+alter system set "_optimizer_extended_cursor_sharing_rel"=none sid='*' scope=spfile;
+alter system set parallel_force_local=true scope=spfile sid='*';
+alter system set "_undo_autotune"=false scope=spfile sid='*';
+
+alter system set "_px_use_large_pool"=true sid ='*' scope=spfile;
+alter system set "_gc_defer_time"=3 scope=spfile sid='*';
+alter system set "_use_adaptive_log_file_sync"=false sid='*' scope=spfile;
+
+alter system set event='28401 trace name context forever,level 1','10949 trace name context forever,level 1' sid='*' scope=spfile;
+alter system set events '28401 trace name context forever,level 1:10949 trace name context forever,level 1' sid='*';
+
+-- 有些参数不支持滚动修改,需要停所有实例
+-- disable DRM
+-- 如果不能禁用DRM ,可以使用下面的参数减少DRM
+ alter system set  "_gc_policy_minimum"=10485760 sid='*';
+ 
+ alter system set "_enable_shared_pool_durations"=false scope=spfile;
+
+禁用ora.crf，避免osysmond进程大量吃系统资源（如CPU）
+以root用户在每个RAC节点执行以下语句：
+crsctl modify res ora.crf -attr "AUTO_START=never" -init
+crsctl modify res ora.crf -attr "ENABLED=0" -init
+crsctl stop res ora.crf -init
+
+
+
+alter system set event='450502 trace name context forever' scope=spfile; --> extending is favored over scanning for space
+alter system set "_kdis_reject_ops" = true scope=spfile; ->> allow control over reject operations
+alter system set "_kdis_reject_level" = 3 scope=spfile; --> minimum level that index has before reject control can be imposed
+alter system set "_kdis_reject_limit" = 5 scope=spfile; --> number of branch blocks to be scanned before a split / space scan is forced
+--> There might be still a problem with the leaf scanning if leaf split is required, the number or leaf reads can be minimized by using :
+alter system set event='450503 trace name context forever, level 1' scope=spfile; --> allow assm threashold lower then 1024/1000
+alter system set event='43822 trace name context forever' scope=spfile; --> control rejections for root/branch split
+alter system set "_assm_high_gsp_threshold"=12 scope=spfile; --> high threshold for number of leafs to scan
+alter system set "_assm_low_gsp_threshold"=5 scope=spfile; ---> low threshold for number of leafs to scan
+--> Allow control over other types of block splits <assm_{high|low}_gsp_threshold> control the number of leaf blocks to read before extending the segment => Branch block reads until a split can be minimized using:?
+
+An ORA-4031 may be raised in a RAC environment due to very large "KQR X PO" allocations that
+persist after partitioning DDL operations complete and do not reduce significantly even with a 
+shared pool flush. 
+Bug 13814739 - Excessive KQR X PO" allocations in a RAC environment (can cause ORA-4031) (文档 ID 13814739.8)
+
+# for bug 16529874 
+# _lm_rcvr_hang_check_frequency=30 
+
+
+# for Bug 21467081 
+alter system set "_extended_pruning_enabled"=false scope=spfile;   
+
+# 
+alter system set "_partition_large_extents"=false;
+
+# wrong result
+alter system set "_b_tree_bitmap_plans"=false;
+
+#　11204  Bug 13692395  Bug 18758878 Disable OR expansion using below parameter:
+ 
+  alter system set "_no_or_expansion" = true;
+ 
+# for 12824218 
+_job_queue_interval=30 --default 5
+
+# Best Practices and Recommendations for RAC databases with SGA size over 100GB (文档 ID 1619155.1)
+alter system set "_lm_sync_timeout"=1200                        scope=spfile sid='*';
+Set shared_pool_size to 15% or larger of the total SGA size.
+Set _gc_policy_minimum to 15000
+Set _lm_tickets to 5000   --default 1000
+Set gcs_server_processes to the twice the default number of lms processes that are allocated
+
+
+# Bug 14275161  ORA-600 [rwoirw: check ret val] on CTAS with predicate move around
+alter system set set _pred_move_around
+
+# for bug 19689979  11.2.0.4
+alter system set  "_part_access_version_by_number"=false;
+
+
+
+alter system set db_files=4000                     scope=spfile ;
+alter system set open_cursors=3000                 scope=spfile;
+alter system set session_cached_cursors=200        scope=spfile;
+alter system set processes=1000  scope=spfile;
+alter system set sga_max_size=30g  scope=spfile;
+
+# 最佳实践 参数
+Alter system set resource_manager_planz='FORCE:'    scope=spfile sid='*';
+Alter system set audit_trail=none                  scope=spfile sid='*';
+alter system set session_cached_cursors=200        scope=spfile sid='*';
+
+alter system set db_files=4000                     scope=spfile sid='*';
+alter system set max_shared_servers=0              scope=spfile sid='*';
+alter system set sec_max_failed_login_attempts=100 scope=spfile sid='*';
+alter system set deferred_segment_creation=false   scope=spfile sid='*';
+alter system set parallel_force_local=true         scope=spfile sid='*';
+alter system set sec_case_sensitive_logon=false    scope=spfile sid='*';
+alter system set open_cursors=3000                 scope=spfile sid='*';
+alter system set open_link =40                     scope=spfile sid='*';
+alter system set open_links_per_instance =40       scope=spfile sid='*';
+
+
+alter system set db_cache_advice=off               scope=spfile sid='*';
+alter system set result_cache_max_size=0           scope=spfile sid='*';
+
+alter system set enable_ddl_logging=true scope=spfile sid='*';
+alter system set archive_lag_target=1800 scope=spfile sid='*';
+alter system set db_securefile=always scope=spfile sid='*';
+alter system set "_ktb_debug_flags"=8 scope=both sid='*';
+alter system set cell_offload_processing=false scope=spfile sid='*';
+
+alter system set "_kttext_warning"=1 scope=spfile sid='*';
+alter system set "_optimizer_ads_use_result_cache" = FALSE  scope=spfile sid='*';
+alter system set "_b_tree_bitmap_plans"=false           scope=spfile sid='*';
+
+LOG_ARCHIVE_FORMAT = 'arch_%t_%s_%r.arc'
+
+
+
+alter system set "_optimizer_use_feedback"=false        scope=spfile sid='*';;
+
+alter system set "_high_priority_processes"='LMS*|VKTM|LGWR' scope=spfile sid='*';
+alter system set "_bloom_filter_enabled"=FALSE          scope=spfile sid='*';
+
+alter system set "_cleanup_rollback_entries"=4000      scope=spfile sid='*';
+alter system set "_index_partition_large_extents"=FALSE         scope=spfile sid='*';
+alter system set "_memory_imm_mode_without_autosga"=FALSE       scope=spfile sid='*';
+
+alter system set "_clusterwide_global_transactions"=FALSE       scope=spfile sid='*';
+alter system set "_sort_elimination_cost_ratio"=1                scope=spfile sid='*';
+alter system set "_use_adaptive_log_file_sync"=FALSE            scope=spfile sid='*'; 
+alter system set "_ksmg_granule_size"=134217728                 scope=spfile sid='*';
+
+alter system set "_external_scn_logging_threshold_seconds"=3600 scope=spfile sid='*';
+alter system set "_external_scn_rejection_thresh"=24 scope=spfile sid='*';
+
+alter system set event='28401 TRACE NAME CONTEXT FOREVER, LEVEL 1:10943 trace name context level 2097152:60025 trace name context forever:10949 trace name context forever,level 1' sid='*' scope=spfile;
+
+# bug
+alter system set “_gc_override_force_cr”=false scope=both sid=’*’;
+
+
+<=19.8 OR-Expansion in 19c Causes Slower Executions Plans than in Previous Versions (Doc ID 2747498.1)
+
+alter system set "_optimizer_cbqt_or_expansion" = off scope=both sid='*';  --default true
+
+
+#Best Practices and Recommendations for RAC databases with SGA size over 100GB (文档 ID 1619155.1)
+a.      Set _lm_sync_timeout to 1200 
+           Setting this will prevent some timeouts during reconfiguration and DRM. It's a static parameter and rolling restart is supported.
+
+
+b.      Set _ksmg_granule_size to 134217728
+           Setting this will cut down the time needed to locate the resource for a data block. It's a static parameter and rolling restart is supported.
+
+c.      Set shared_pool_size to 15% or larger of the total SGA size.
+        For example, if SGA size is 1 TB, the shared pool size should be at least 150 GB. It's a dynamic parameter.
+
+d.      Set _gc_policy_minimum to 15000
+        There is no need to set _gc_policy_minimum if DRM is disabled by setting _gc_policy_time = 0. _gc_policy_minimum is a dynamic parameter, _gc_policy_time is a static parameter and rolling restart is not supported. To disable DRM, instead of _gc_policy_time, _lm_drm_disable should be used as it's dynamic.
+
+e.      Set _lm_tickets to 5000
+        Default is 1000.   Allocating more tickets (used for sending messages) avoids issues where we ran out of tickets during the reconfiguration. It's a static parameter and rolling restart is supported. When increasing the parameter, rolling restart is fine but a cold restart can be necessary when decreasing.
+
+f.      Set gcs_server_processes to the twice the default number of lms processes that are allocated.
+        The default number of lms processes depends on the number of CPUs/cores that the server has, 
+        so please refer to the gcs_server_processes init.ora parameter section in the Oracle Database Reference Guide 
+        for the default number of lms processes for your server.  Please make sure that the total number of lms processes 
+        of all databases on the server is less than the total number of CPUs/cores on the server.  Please refer to the Document 558185.1 
+        It's a static parameter and rolling restart is supported.

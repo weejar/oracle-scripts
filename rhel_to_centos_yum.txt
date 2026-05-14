@@ -1,0 +1,93 @@
+
+网络 Yum 源（阿里云镜像）
+
+步骤 1：卸载 RedHat 默认 Yum 包（如需替换为 CentOS 源）
+rpm -qa | grep yum | xargs rpm -e --nodeps
+
+步骤 2：centos 7 需要rpm 安装包
+https://pan.baidu.com/s/10IrBjM5j_TJT0Qc2aW64Cg 提取码 i4pe
+
+如果安装缺少 python-kitchen 和 python-chardet
+
+wget https://mirrors.aliyun.com/centos/7/os/x86_64/Packages/python-chardet-2.2.1-3.el7.noarch.rpm
+
+wget https://mirrors.aliyun.com/centos/7/os/x86_64/Packages/python-kitchen-1.1.1-5.el7.noarch.rpm
+
+如果连wget都没有 可以先下载 https://mirrors.aliyun.com/centos/7/os/x86_64/Packages/wget-1.14-18.el7_6.1.x86_64.rpm  上传服务器，先安装wget
+
+
+# rpm -ivh python-chardet-2.2.1-3.el7.noarch.rpm
+warning: python-chardet-2.2.1-3.el7.noarch.rpm: Header V3 RSA/SHA256 Signature, key ID f4a80eb5: NOKEY
+Preparing...                          ################################# [100%]
+Updating / installing...
+   1:python-chardet-2.2.1-3.el7       ################################# [100%]
+   
+# rpm -ivh python-kitchen-1.1.1-5.el7.noarch.rpm
+warning: python-kitchen-1.1.1-5.el7.noarch.rpm: Header V3 RSA/SHA256 Signature, key ID f4a80eb5: NOKEY
+Preparing...                          ################################# [100%]
+Updating / installing...
+   1:python-kitchen-1.1.1-5.el7       ################################# [100%]
+
+# rpm -ivh yum*
+warning: yum-3.4.3-132.el7.centos.0.1.noarch.rpm: Header V3 RSA/SHA256 Signature, key ID f4a80eb5: NOKEY
+Preparing...                          ################################# [100%]
+Updating / installing...
+   1:yum-metadata-parser-1.1.4-10.el7 ################################# [ 20%]
+   2:yum-plugin-fastestmirror-1.1.31-3################################# [ 40%]
+   3:yum-3.4.3-132.el7.centos.0.1     ################################# [ 60%]
+   4:yum-updateonboot-1.1.31-34.el7   ################################# [ 80%]
+   5:yum-utils-1.1.31-34.el7          ################################# [100%]
+
+
+
+
+# cd etc/yum.repos.d/
+# ls
+aliyun.repo  
+
+# cat aliyun.repo
+[ali_baseos]
+name=Aliyun BaseOS
+baseurl=https://mirrors.aliyun.com/centos/7/os/$basearch
+enabled=1
+gpgcheck=0
+
+
+yum clean all
+yum makecache
+yum update -y
+
+
+
+
+-----------------
+1.备份原有 repo 文件
+
+mkdir -p /etc/yum.repos.d/backup
+mv /etc/yum.repos.d/*.repo /etc/yum.repos.d/backup/ 2>/dev/null || true
+
+2. 禁用 subscription-manager 插件（避免干扰）
+
+sed -i 's/enabled=1/enabled=0/g' /etc/yum/pluginconf.d/subscription-manager.conf
+
+若文件不存在，可跳过。
+
+3. 下载阿里云 CentOS 7 镜像源配置文件
+
+curl -o /etc/yum.repos.d/CentOS-Base.repo http://mirrors.aliyun.com/repo/Centos-7.repo
+
+4. 替换 $releasever 为固定版本 7
+
+sed -i 's/$releasever/7/g' /etc/yum.repos.d/CentOS-Base.repo
+
+5. 清理并重建 yum 缓存
+
+yum clean all
+yum makecache
+
+6. （可选）安装 EPEL 源（如需额外软件包）
+
+yum install -y epel-release
+# 若失败，手动下载 EPEL vault 源
+curl -o /etc/yum.repos.d/epel.repo https://mirrors.aliyun.com/repo/epel-7.repo
+yum clean all && yum makecache
